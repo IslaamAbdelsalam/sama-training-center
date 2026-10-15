@@ -1,0 +1,12 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+    Layout = "_AuthLayout";
+}
+<h4 class="mb-1">Something went wrong</h4>
+<p class="mb-5">An error occurred while processing your request. Please try again, or contact the system administrator if it keeps happening.</p>
+@if (Model.ShowRequestId)
+{
+    <p class="small text-body-secondary">Reference: <code>@Model.RequestId</code></p>
+}
+<a href="/" class="btn btn-primary w-100">Back to the system</a>

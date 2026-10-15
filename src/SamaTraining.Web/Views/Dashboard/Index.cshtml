@@ -1,0 +1,109 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var currency = AppOptions.Value.CurrencyCode;
+    var name = User.FindFirst("full_name")?.Value ?? User.Identity?.Name;
+}
+
+<div class="row g-6">
+    <div class="col-12">
+        <div class="card bg-primary text-white">
+            <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4">
+                <div>
+                    <h4 class="text-white mb-1">Welcome back, @name</h4>
+                    <p class="mb-0 opacity-75">Here is what is happening at the training center today, @DateTime.Today.ToString("dddd, d MMMM yyyy").</p>
+                </div>
+                @if (User.Can(Permissions.WorkshopsManage))
+                {
+                    <a asp-controller="Workshops" asp-action="Create" class="btn btn-light text-primary">
+                        <i class="icon-base ri ri-add-line me-1"></i>New workshop
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+
+    @{
+        var stats = new List<(string Label, string Value, string Icon, string Color, WorkshopStatus? Filter)>
+        {
+            ("Pending", Model.Pending.ToString(), "ri-time-line", "warning", WorkshopStatus.Pending),
+            ("Ongoing", Model.Ongoing.ToString(), "ri-play-circle-line", "info", WorkshopStatus.Ongoing),
+            ("Completed", Model.Completed.ToString(), "ri-checkbox-circle-line", "success", WorkshopStatus.Completed),
+            ("Registrations", Model.TotalRegistrations.ToString("N0"), "ri-user-add-line", "primary", null),
+        };
+        if (Model.ShowExpenses)
+        {
+            stats.Add(("Total expenses", Model.TotalExpenses.ToString("N2") + " " + currency, "ri-money-dollar-circle-line", "danger", null));
+        }
+        var col = Model.ShowExpenses ? "col-sm-6 col-lg" : "col-sm-6 col-lg-3";
+    }
+
+    @foreach (var s in stats)
+    {
+        <div class="@col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="stat-icon bg-label-@s.Color"><i class="icon-base ri @s.Icon"></i></span>
+                        @if (s.Filter.HasValue)
+                        {
+                            <a asp-controller="Workshops" asp-action="Index" asp-route-Status="@s.Filter" class="small">View</a>
+                        }
+                    </div>
+                    <h4 class="mb-0">@s.Value</h4>
+                    <p class="mb-0 text-body-secondary">@s.Label</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">Upcoming and running workshops</h5>
+                    <small class="text-body-secondary">@Model.OpenRegistrations workshop(s) currently accepting registrations</small>
+                </div>
+                <a asp-controller="Workshops" asp-action="Index" class="btn btn-sm btn-outline-primary">All workshops</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Workshop</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Registration</th>
+                    </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                    @if (Model.Upcoming.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center text-body-secondary py-6">No upcoming workshops yet.</td></tr>
+                    }
+                    @foreach (var w in Model.Upcoming)
+                    {
+                        <tr>
+                            <td><a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a></td>
+                            <td>@w.StartDateTime.ToString("dd MMM yyyy") <small class="text-body-secondary d-block">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")</small></td>
+                            <td>@(w.Type == WorkshopType.Online ? "Online" : w.Hall?.Name ?? "On-site")</td>
+                            <td><partial name="_StatusBadge" model="w.Status" /></td>
+                            <td>
+                                @if (w.RegistrationOpen)
+                                {
+                                    <span class="badge bg-label-primary">Open</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-label-secondary">Closed</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

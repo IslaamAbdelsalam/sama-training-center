@@ -1,0 +1,87 @@
+@model UserFormModel
+@{
+    var isNew = string.IsNullOrEmpty(Model.Id);
+    ViewData["Title"] = isNew ? "Add User" : "Edit User";
+}
+<h4 class="mb-6">@ViewData["Title"]</h4>
+
+<form asp-action="Save" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="row g-6">
+        <div class="col-lg-7">
+            <div class="card">
+                <h5 class="card-header">Account</h5>
+                <div class="card-body">
+                    <div class="form-floating form-floating-outline mb-5">
+                        <input asp-for="FullName" class="form-control" placeholder="Full name" autofocus />
+                        <label asp-for="FullName"></label>
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+                    <div class="row g-4 mb-5">
+                        <div class="col-sm-6">
+                            <div class="form-floating form-floating-outline">
+                                <input asp-for="UserName" class="form-control" placeholder="Username" autocomplete="off" />
+                                <label asp-for="UserName"></label>
+                            </div>
+                            <span asp-validation-for="UserName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="form-floating form-floating-outline">
+                                <input asp-for="PhoneNumber" class="form-control" placeholder="Phone" />
+                                <label asp-for="PhoneNumber"></label>
+                            </div>
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <div class="form-floating form-floating-outline mb-5">
+                        <input asp-for="Email" class="form-control" placeholder="Email" />
+                        <label asp-for="Email"></label>
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+                    @if (isNew)
+                    {
+                        <div class="form-floating form-floating-outline mb-2">
+                            <input asp-for="Password" class="form-control" placeholder="Initial password" autocomplete="new-password" />
+                            <label asp-for="Password"></label>
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+                        <p class="small text-body-secondary mb-5">At least 8 characters with upper and lower case letters, a number and a symbol. The user must change it at first login. Share it through a secure channel, not in this proposal or by email in plain text.</p>
+                    }
+                    <div class="form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                        <div class="form-text">Inactive users can't sign in. Deactivating signs them out within a minute.</div>
+                        <span asp-validation-for="IsActive" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <h5 class="card-header">Roles</h5>
+                <div class="card-body">
+                    <p class="small text-body-secondary">The user's permissions come from their roles. Edit what each role can do under <a asp-controller="Roles" asp-action="Index">Roles &amp; Permissions</a>.</p>
+                    @foreach (var role in Model.AllRoles)
+                    {
+                        var id = "role-" + role.Replace(' ', '-');
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="SelectedRoles" value="@role" id="@id" checked="@Model.SelectedRoles.Contains(role)" />
+                            <label class="form-check-label" for="@id">@role</label>
+                        </div>
+                    }
+                    <span asp-validation-for="SelectedRoles" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary me-2">Save user</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

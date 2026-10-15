@@ -1,0 +1,16 @@
+@if (TempData["FlashSuccess"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
+        <i class="icon-base ri ri-checkbox-circle-line me-2"></i>
+        <span>@ok</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["FlashError"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+        <i class="icon-base ri ri-error-warning-line me-2"></i>
+        <span>@err</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}

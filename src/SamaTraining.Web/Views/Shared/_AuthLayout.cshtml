@@ -1,0 +1,35 @@
+@{
+    var settings = AppOptions.Value;
+}
+<!doctype html>
+<html lang="en" class="layout-wide customizer-hide" data-assets-path="/assets/" data-template="vertical-menu-template-free">
+<head>
+    <partial name="_Head" />
+    <link rel="stylesheet" href="~/assets/vendor/css/pages/page-auth.css" />
+    <title>@ViewData["Title"] | @settings.SystemName</title>
+</head>
+<body>
+<div class="position-relative">
+    <div class="authentication-wrapper authentication-basic container-p-y">
+        <div class="authentication-inner py-6 mx-4">
+            <div class="card p-sm-7 p-2">
+                <div class="app-brand justify-content-center mt-5">
+                    <a href="/" class="app-brand-link gap-3">
+                        <span class="app-brand-logo demo sama-logo"><i class="icon-base ri ri-graduation-cap-fill"></i></span>
+                        <span class="app-brand-text demo text-heading fw-semibold sama-brand">@settings.SystemName</span>
+                    </a>
+                </div>
+                <div class="card-body mt-1">
+                    @RenderBody()
+                </div>
+            </div>
+            <img src="~/assets/img/illustrations/tree-3.png" alt="" class="authentication-image-object-left d-none d-lg-block" />
+            <img src="~/assets/img/illustrations/auth-basic-mask-light.png" class="authentication-image d-none d-lg-block scaleX-n1-rtl" height="172" alt="" />
+            <img src="~/assets/img/illustrations/tree.png" alt="" class="authentication-image-object-right d-none d-lg-block" />
+        </div>
+    </div>
+</div>
+<partial name="_Scripts" />
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

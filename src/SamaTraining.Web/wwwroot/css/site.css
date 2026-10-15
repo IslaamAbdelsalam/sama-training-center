@@ -1,0 +1,112 @@
+/* SAMA Training Center — small additions on top of the green Materio theme. */
+
+.app-brand-logo.sama-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bs-primary);
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.app-brand-text.sama-brand {
+  font-size: 1.15rem;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.link-box {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.content-pre {
+  white-space: pre-wrap;
+}
+
+.timeline-simple {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.timeline-simple li {
+  position: relative;
+  padding: 0 0 1rem 1.5rem;
+  border-left: 2px solid var(--bs-border-color);
+  margin-left: 0.4rem;
+}
+
+.timeline-simple li::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bs-primary);
+}
+
+.timeline-simple li:last-child {
+  border-left-color: transparent;
+}
+
+/* Public registration page */
+.public-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(160deg, rgba(var(--bs-primary-rgb), 0.12), transparent 45%);
+}
+
+.public-card {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.public-header {
+  background: var(--bs-primary);
+  color: #fff;
+  border-radius: 0.6rem 0.6rem 0 0;
+}
+
+.public-header h4,
+.public-header p {
+  color: #fff;
+}
+
+[dir="rtl"] body,
+[dir="rtl"] .public-card {
+  text-align: right;
+}
+
+[dir="rtl"] .me-2 {
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
+}
+
+[dir="rtl"] .ms-auto {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+html[lang="ar"] body {
+  font-family: "Cairo", "Inter", sans-serif;
+}

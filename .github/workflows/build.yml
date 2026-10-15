@@ -1,0 +1,51 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore SamaTraining.sln
+
+      - name: Build
+        run: dotnet build SamaTraining.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test SamaTraining.sln --no-build -c Release --logger "console;verbosity=normal"
+
+      # Creates the first EF Core migration if the project doesn't have one yet.
+      # Download the "migrations" artifact from the run and commit it under Data/Migrations.
+      - name: Generate initial migration (only if missing)
+        if: hashFiles('src/SamaTraining.Web/Data/Migrations/*.cs') == ''
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.11
+          dotnet ef migrations add InitialCreate --project src/SamaTraining.Web --output-dir Data/Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Database=Design;Trusted_Connection=True;TrustServerCertificate=True"
+
+      - name: Upload generated migration
+        if: hashFiles('src/SamaTraining.Web/Data/Migrations/*.cs') != '' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations
+          path: src/SamaTraining.Web/Data/Migrations/
+
+      - name: Publish (deployable package)
+        run: dotnet publish src/SamaTraining.Web/SamaTraining.Web.csproj -c Release -o publish --no-restore
+
+      - name: Upload deployable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sama-training-web
+          path: publish/

@@ -1,0 +1,65 @@
+@model RoleFormModel
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.Id) ? "Add Role" : "Edit Role";
+    var groups = Permissions.All.GroupBy(p => p.Group);
+}
+<h4 class="mb-6">@ViewData["Title"]</h4>
+
+<form asp-action="Save" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card mb-6" style="max-width: 640px">
+        <div class="card-body">
+            <div class="form-floating form-floating-outline">
+                @if (Model.IsSystemAdminRole)
+                {
+                    <input asp-for="Name" class="form-control" placeholder="Role name" readonly />
+                }
+                else
+                {
+                    <input asp-for="Name" class="form-control" placeholder="Role name" />
+                }
+                <label asp-for="Name"></label>
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            @if (Model.IsSystemAdminRole)
+            {
+                <p class="small text-body-secondary mt-3 mb-0">The Administrator role always has every permission, so the system can never be locked out.</p>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <h5 class="card-header">Permissions</h5>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Area</th><th>Permission</th><th class="text-center" style="width: 110px">Allowed</th></tr></thead>
+                <tbody class="table-border-bottom-0">
+                @foreach (var g in groups)
+                {
+                    var first = true;
+                    foreach (var p in g)
+                    {
+                        var id = "perm-" + p.Key.Replace('.', '-');
+                        <tr>
+                            <td class="fw-medium">@(first ? g.Key : "")</td>
+                            <td><label for="@id" class="mb-0">@p.Description</label></td>
+                            <td class="text-center">
+                                <div class="form-check form-switch d-inline-block mb-0">
+                                    <input class="form-check-input" type="checkbox" name="SelectedPermissions" value="@p.Key" id="@id"
+                                           checked="@(Model.IsSystemAdminRole || Model.SelectedPermissions.Contains(p.Key))" disabled="@Model.IsSystemAdminRole" />
+                                </div>
+                            </td>
+                        </tr>
+                        first = false;
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Save role</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+</form>

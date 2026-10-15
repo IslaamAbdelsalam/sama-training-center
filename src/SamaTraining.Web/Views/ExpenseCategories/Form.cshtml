@@ -1,0 +1,35 @@
+@model ExpenseCategoryFormModel
+@{
+    ViewData["Title"] = Model.Id == 0 ? "Add Expense Category" : "Edit Expense Category";
+}
+<h4 class="mb-6">@ViewData["Title"]</h4>
+
+<div class="card" style="max-width: 640px">
+    <div class="card-body">
+        <form asp-action="Save" method="post">
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="form-floating form-floating-outline mb-5">
+                <input asp-for="Name" class="form-control" placeholder="Name" autofocus />
+                <label asp-for="Name"></label>
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            <div class="form-floating form-floating-outline mb-5">
+                <input asp-for="Description" class="form-control" placeholder="Description" />
+                <label asp-for="Description"></label>
+                <span asp-validation-for="Description" class="text-danger small"></span>
+            </div>
+            <div class="form-check form-switch mb-6">
+                <input asp-for="IsActive" class="form-check-input" />
+                <label asp-for="IsActive" class="form-check-label"></label>
+                <div class="form-text">Inactive categories stay on old expenses but can't be picked for new ones.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">Save</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

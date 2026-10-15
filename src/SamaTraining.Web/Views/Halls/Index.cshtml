@@ -1,0 +1,51 @@
+@model List<Hall>
+@{
+    ViewData["Title"] = "Halls & Locations";
+    var uses = (Dictionary<int, int>)ViewBag.Uses;
+}
+<div class="d-flex justify-content-between align-items-center mb-6">
+    <div>
+        <h4 class="mb-1">Halls &amp; Locations</h4>
+        <p class="mb-0 text-body-secondary">Places available for on-site workshops.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add hall</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+            <tr><th>Name</th><th>Location</th><th>Capacity</th><th>Used by</th><th>Status</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-body-secondary py-6">No halls yet.</td></tr>
+            }
+            @foreach (var h in Model)
+            {
+                var used = uses.GetValueOrDefault(h.Id);
+                <tr>
+                    <td class="fw-medium">@h.Name</td>
+                    <td>@h.Location</td>
+                    <td>@(h.Capacity?.ToString() ?? "—")</td>
+                    <td>@used workshop(s)</td>
+                    <td>
+                        @if (h.IsActive) { <span class="badge bg-label-success">Active</span> }
+                        else { <span class="badge bg-label-secondary">Inactive</span> }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a asp-action="Edit" asp-route-id="@h.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
+                        @if (used == 0)
+                        {
+                            <form asp-action="Delete" asp-route-id="@h.Id" method="post" class="d-inline" data-confirm="Delete the hall &quot;@h.Name&quot;?">
+                                <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete"><i class="icon-base ri ri-delete-bin-7-line"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

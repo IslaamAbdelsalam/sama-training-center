@@ -1,0 +1,102 @@
+@model WorkshopIndexViewModel
+@{
+    ViewData["Title"] = "Workshops";
+    var f = Model.Filter;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-6">
+    <div>
+        <h4 class="mb-1">Workshops</h4>
+        <p class="mb-0 text-body-secondary">@Model.Items.Count workshop(s) found</p>
+    </div>
+    @if (User.Can(Permissions.WorkshopsManage))
+    {
+        <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>New workshop</a>
+    }
+</div>
+
+<div class="card mb-6">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-4 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" for="Search">Name</label>
+                <input type="text" id="Search" name="Search" value="@f.Search" class="form-control" placeholder="Search by name" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="Status">Status</label>
+                <select id="Status" name="Status" class="form-select">
+                    <option value="">All</option>
+                    @foreach (var s in Enum.GetValues<WorkshopStatus>())
+                    {
+                        <option value="@s" selected="@(f.Status == s)">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="Type">Type</label>
+                <select id="Type" name="Type" class="form-select">
+                    <option value="">All</option>
+                    <option value="@WorkshopType.Online" selected="@(f.Type == WorkshopType.Online)">Online</option>
+                    <option value="@WorkshopType.OnSite" selected="@(f.Type == WorkshopType.OnSite)">On-site</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="From">From</label>
+                <input type="date" id="From" name="From" value="@f.From?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="To">To</label>
+                <input type="date" id="To" name="To" value="@f.To?.ToString("yyyy-MM-dd")" class="form-control" />
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-filter-3-line me-1"></i>Filter</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>Workshop</th>
+                <th>Date &amp; time</th>
+                <th>Type / place</th>
+                <th>Status</th>
+                <th>Registration</th>
+                <th class="text-end">Students</th>
+            </tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-body-secondary py-6">No workshops match these filters.</td></tr>
+            }
+            @foreach (var w in Model.Items)
+            {
+                <tr>
+                    <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a></td>
+                    <td class="text-nowrap">@w.StartDateTime.ToString("dd MMM yyyy")<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")</small></td>
+                    <td>
+                        @if (w.Type == WorkshopType.Online)
+                        {
+                            <span><i class="icon-base ri ri-global-line me-1"></i>Online</span>
+                        }
+                        else
+                        {
+                            <span><i class="icon-base ri ri-map-pin-line me-1"></i>@(w.HallName ?? "On-site")</span>
+                        }
+                    </td>
+                    <td><partial name="_StatusBadge" model="w.Status" /></td>
+                    <td>
+                        @if (w.RegistrationOpen) { <span class="badge bg-label-primary">Open</span> }
+                        else { <span class="badge bg-label-secondary">Closed</span> }
+                    </td>
+                    <td class="text-end">@w.Registrations</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

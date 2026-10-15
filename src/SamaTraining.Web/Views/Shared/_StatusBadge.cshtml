@@ -1,0 +1,10 @@
+@model WorkshopStatus
+@{
+    var css = Model switch
+    {
+        WorkshopStatus.Pending => "bg-label-warning",
+        WorkshopStatus.Ongoing => "bg-label-info",
+        _ => "bg-label-success"
+    };
+}
+<span class="badge rounded-pill @css">@Model</span>
