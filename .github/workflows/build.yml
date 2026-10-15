@@ -22,7 +22,7 @@ jobs:
         run: dotnet build SamaTraining.sln --no-restore -c Release
 
       - name: Test
-        run: dotnet test SamaTraining.sln --no-build -c Release --logger "console;verbosity=normal"
+        run: dotnet test SamaTraining.sln --no-build -c Release --logger "console;verbosity=normal" --logger "GitHubActions;summary-include-passed=false"
 
       # Creates the first EF Core migration if the project doesn't have one yet.
       # Download the "migrations" artifact from the run and commit it under Data/Migrations.
