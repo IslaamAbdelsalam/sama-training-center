@@ -154,6 +154,17 @@ public class WorkshopsController : AppController
     [HttpPost, HasPermission(Permissions.WorkshopsManage)]
     public async Task<IActionResult> Save(WorkshopFormModel model)
     {
+        // Cross-field rules, checked here so they show together with any missing-field errors.
+        if (model.StartTime.HasValue && model.EndTime.HasValue && model.EndTime <= model.StartTime)
+        {
+            ModelState.AddModelError(nameof(model.EndTime), "End time must be after the start time.");
+        }
+
+        if (model.Type == WorkshopType.OnSite && model.HallId == null)
+        {
+            ModelState.AddModelError(nameof(model.HallId), "Choose a hall or location for an on-site workshop.");
+        }
+
         var country = _settings.FindCountry(model.Country);
         if (model.Country != null && country == null)
         {

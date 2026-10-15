@@ -121,7 +121,7 @@ public class WorkshopIndexViewModel
     public List<WorkshopListItem> Items { get; set; } = new();
 }
 
-public class WorkshopFormModel : IValidatableObject
+public class WorkshopFormModel
 {
     public int Id { get; set; }
 
@@ -162,19 +162,6 @@ public class WorkshopFormModel : IValidatableObject
     public string? Content { get; set; }
 
     public IEnumerable<SelectListItem> Halls { get; set; } = Enumerable.Empty<SelectListItem>();
-
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        if (StartTime.HasValue && EndTime.HasValue && EndTime <= StartTime)
-        {
-            yield return new ValidationResult("End time must be after the start time.", new[] { nameof(EndTime) });
-        }
-
-        if (Type == WorkshopType.OnSite && HallId == null)
-        {
-            yield return new ValidationResult("Choose a hall or location for an on-site workshop.", new[] { nameof(HallId) });
-        }
-    }
 }
 
 public class WorkshopDetailsViewModel
