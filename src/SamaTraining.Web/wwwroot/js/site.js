@@ -1,17 +1,75 @@
-﻿// SAMA Training Center — small page behaviours.
+﻿// SAMA Training Center — page behaviours: toasts, confirmation dialog, loading buttons,
+// copy buttons, row highlight, and the workshop form's online/on-site switch.
 (function () {
   'use strict';
 
-  // Confirmation before destructive actions: <form data-confirm="Are you sure?">
-  document.addEventListener('submit', function (e) {
-    var form = e.target;
-    var message = form.getAttribute && form.getAttribute('data-confirm');
-    if (message && !window.confirm(message)) {
-      e.preventDefault();
+  // ---- Toasts: show any rendered toasts (success / error / info / validation) ----
+  document.querySelectorAll('.app-toast').forEach(function (el) {
+    if (window.bootstrap && bootstrap.Toast) {
+      var delay = parseInt(el.getAttribute('data-bs-delay') || '5000', 10);
+      var bar = el.querySelector('.app-toast-progress');
+      if (bar) bar.style.animationDuration = delay + 'ms';
+      new bootstrap.Toast(el, { delay: delay }).show();
+    } else {
+      el.classList.add('show');
     }
   });
 
-  // Copy-to-clipboard buttons: <button data-copy-target="#id">
+  // ---- Confirmation dialog: <form data-confirm="message" data-confirm-title="..." data-confirm-button="Delete"> ----
+  var modalEl = document.getElementById('confirmModal');
+  var pendingForm = null;
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    var message = form.getAttribute && form.getAttribute('data-confirm');
+    if (!message || form.dataset.confirmed === 'true') return;
+    e.preventDefault();
+
+    if (!modalEl || !window.bootstrap) {
+      if (window.confirm(message)) { form.dataset.confirmed = 'true'; form.requestSubmit ? form.requestSubmit() : form.submit(); }
+      return;
+    }
+
+    pendingForm = form;
+    document.getElementById('confirmTitle').textContent = form.getAttribute('data-confirm-title') || 'Are you sure?';
+    document.getElementById('confirmMessage').textContent = message;
+    var ok = document.getElementById('confirmOk');
+    ok.textContent = form.getAttribute('data-confirm-button') || 'Yes, continue';
+    ok.className = 'btn ' + (form.getAttribute('data-confirm-style') === 'primary' ? 'btn-primary' : 'btn-danger');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }, true);
+
+  if (modalEl) {
+    document.getElementById('confirmOk').addEventListener('click', function () {
+      if (!pendingForm) return;
+      var form = pendingForm;
+      pendingForm = null;
+      form.dataset.confirmed = 'true';
+      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      if (form.requestSubmit) form.requestSubmit(); else form.submit();
+    });
+  }
+
+  // ---- Loading state on submit: prevents double saves ----
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (e.defaultPrevented || form.method.toLowerCase() === 'get') return;
+    if (window.jQuery && jQuery(form).data('validator') && !jQuery(form).valid()) return;
+    var btn = e.submitter || form.querySelector('button[type=submit]');
+    if (!btn || btn.dataset.noLoading !== undefined) return;
+    // Keep the clicked button's name/value (e.g. "addAnother") in the post.
+    if (btn.name) {
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden'; hidden.name = btn.name; hidden.value = btn.value;
+      form.appendChild(hidden);
+    }
+    setTimeout(function () {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>' +
+        (btn.getAttribute('data-loading-text') || 'Saving…');
+    }, 0);
+  });
+
+  // ---- Copy-to-clipboard buttons: <button data-copy-target="#id"> ----
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-copy-target]');
     if (!btn) return;
@@ -21,18 +79,34 @@
     var done = function () {
       var original = btn.innerHTML;
       btn.innerHTML = '<i class="icon-base ri ri-check-line me-1"></i>Copied';
-      setTimeout(function () { btn.innerHTML = original; }, 1800);
+      btn.classList.add('btn-success');
+      setTimeout(function () { btn.innerHTML = original; btn.classList.remove('btn-success'); }, 1800);
     };
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text).then(done);
     } else {
-      target.select && target.select();
+      if (target.select) target.select();
       document.execCommand('copy');
       done();
     }
   });
 
-  // Workshop form: show hall for on-site, meeting link for online.
+  // ---- Highlight the row that was just added or updated ----
+  var highlighted = document.querySelector('.row-highlight');
+  if (highlighted) {
+    highlighted.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // ---- Open the tab named in ?tab=... and keep the URL in sync when switching ----
+  document.querySelectorAll('[data-bs-toggle="tab"][data-tab-name]').forEach(function (tab) {
+    tab.addEventListener('shown.bs.tab', function () {
+      var url = new URL(window.location.href);
+      url.searchParams.set('tab', tab.getAttribute('data-tab-name'));
+      history.replaceState(null, '', url);
+    });
+  });
+
+  // ---- Workshop form: show hall for on-site, meeting link for online; show currency for the country ----
   var typeSelect = document.getElementById('Type');
   if (typeSelect && document.getElementById('hall-group')) {
     var sync = function () {
@@ -42,5 +116,15 @@
     };
     typeSelect.addEventListener('change', sync);
     sync();
+  }
+  var countrySelect = document.getElementById('Country');
+  var currencyHint = document.getElementById('currency-hint');
+  if (countrySelect && currencyHint) {
+    var syncCurrency = function () {
+      var opt = countrySelect.options[countrySelect.selectedIndex];
+      currencyHint.textContent = opt && opt.dataset.currency ? opt.dataset.currency : '—';
+    };
+    countrySelect.addEventListener('change', syncCurrency);
+    syncCurrency();
   }
 })();

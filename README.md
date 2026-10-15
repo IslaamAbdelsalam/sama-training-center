@@ -12,7 +12,9 @@ Built with **ASP.NET Core 8 MVC**, **Entity Framework Core**, **SQL Server**, **
 | Workshop Management | Create, edit, search/filter and delete workshops; online or on-site | US-03 – US-07 |
 | Status & Registration | Pending → Ongoing → Completed lifecycle with history; open/close registration; public link | US-08 – US-10 |
 | Public registration | Bilingual Arabic/English page (RTL for Arabic), validation, capacity, duplicate-email check | US-11 – US-13 |
-| Expense Management | Add/edit/delete expenses once a workshop is Ongoing; totals per workshop | US-14 – US-16 |
+| Expense Management | Add/edit/delete expenses once a workshop is Ongoing; totals per workshop in the workshop's currency | US-14 – US-16 |
+| Countries & currencies | Each workshop runs in a country; its money is in that country's currency (Sudan → SDG, Egypt → EGP) | — |
+| Reports | Totals per currency, seats filled, cost per student, expenses by category, registrations by month, Excel (CSV) export | — |
 | User Management | Users, roles, editable role permissions, lockout, forced password change | US-17 – US-20 |
 
 ## Project structure
@@ -62,11 +64,22 @@ All settings are in `appsettings.json` and can be overridden by environment vari
 | --- | --- | --- |
 | `ConnectionStrings:DefaultConnection` | SQL Server connection | LocalDB |
 | `App:OrganizationName`, `App:SystemName` | Names shown in the UI | SAMA Organization / SAMA Training Center |
-| `App:CurrencyCode` | Currency shown next to expenses | `USD` |
+| `App:Countries` | Countries workshops can run in and each one's currency. Add a country here to support it. | Sudan (SDG), Egypt (EGP) |
 | `App:SessionTimeoutMinutes` | Sign-out after inactivity | `30` |
 | `Database:Mode` | `Migrate` (apply migrations at start-up), `EnsureCreated`, or `None` | `Migrate` |
 | `SeedAdmin:UserName` / `Email` / `FullName` | First administrator account | `admin` |
 | `SeedAdmin:Password` | First administrator's temporary password. Only used when no users exist. | empty in production |
+
+## Currencies
+
+A workshop's country decides its currency, and every expense on that workshop is in that currency. Amounts in different currencies are never added together: the dashboard and reports show one total per currency. Once a workshop has expenses, its country can't be changed.
+
+## Feedback in the interface
+
+- Every add, update and delete ends with a toast message on the page you land on, and the affected row is briefly highlighted.
+- Deletes and other irreversible actions ask for confirmation in a dialog.
+- Buttons show a spinner while saving, so a double click can't save twice.
+- Forms that come back with errors show a "Not saved yet" toast and highlight the fields to fix.
 
 ## Security rules
 

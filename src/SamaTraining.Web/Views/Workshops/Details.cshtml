@@ -2,276 +2,351 @@
 @{
     var w = Model.Workshop;
     ViewData["Title"] = w.Name;
-    var currency = AppOptions.Value.CurrencyCode;
-    string TabCss(string t) => Model.Tab == t ? "active" : "";
-    string PaneCss(string t) => Model.Tab == t ? "show active" : "";
+    var currency = w.CurrencyCode;
+    var countryName = AppOptions.Value.CountryName(w.Country);
+    var highlight = TempData["Highlight"] as string;
+    var canSeeStudents = User.Can(Permissions.RegistrationsView);
+    var canSeeExpenses = User.Can(Permissions.ExpensesView);
+    var tab = Model.Tab;
+    if (tab == "registrations" && !canSeeStudents) tab = "overview";
+    if (tab == "expenses" && !canSeeExpenses) tab = "overview";
+    string TabCss(string t) => tab == t ? "active" : "";
+    string PaneCss(string t) => tab == t ? "show active" : "";
+    var fill = w.Capacity is > 0 ? Math.Min(100, (int)Math.Round(100.0 * Model.RegistrationCount / w.Capacity.Value)) : (int?)null;
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-4 mb-6">
-    <div>
-        <a asp-action="Index" class="small"><i class="icon-base ri ri-arrow-left-line me-1"></i>All workshops</a>
-        <h4 class="mb-1 mt-2">@w.Name</h4>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <partial name="_StatusBadge" model="w.Status" />
-            @if (w.RegistrationOpen) { <span class="badge rounded-pill bg-label-primary">Registration open</span> }
-            else { <span class="badge rounded-pill bg-label-secondary">Registration closed</span> }
-            <span class="text-body-secondary small">@w.StartDateTime.ToString("dddd, dd MMM yyyy · HH:mm")–@w.EndDateTime.ToString("HH:mm")</span>
+<a asp-action="Index" class="small d-inline-flex align-items-center mb-4"><i class="icon-base ri ri-arrow-left-line me-1"></i>All workshops</a>
+
+<!-- Hero -->
+<div class="card ws-hero mb-6">
+    <div class="ws-hero-top p-5 p-md-6">
+        <div class="d-flex flex-wrap gap-4 align-items-start">
+            <div class="ws-date-tile">
+                <span class="m">@w.StartDateTime.ToString("MMM")</span>
+                <span class="d">@w.StartDateTime.Day</span>
+            </div>
+            <div class="flex-grow-1" style="min-width: 220px">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <partial name="_StatusBadge" model="w.Status" />
+                    @if (w.RegistrationOpen)
+                    {
+                        <span class="badge rounded-pill bg-label-primary"><i class="icon-base ri ri-door-open-line me-1"></i>Registration open</span>
+                    }
+                    else
+                    {
+                        <span class="badge rounded-pill bg-label-secondary"><i class="icon-base ri ri-lock-line me-1"></i>Registration closed</span>
+                    }
+                </div>
+                <h4 class="mb-1">@w.Name</h4>
+                @if (!string.IsNullOrWhiteSpace(w.Description))
+                {
+                    <p class="mb-0 text-body-secondary">@w.Description</p>
+                }
+            </div>
+            <div class="d-flex gap-2">
+                @if (Model.CanEdit && User.Can(Permissions.WorkshopsManage))
+                {
+                    <a asp-action="Edit" asp-route-id="@w.Id" class="btn btn-primary"><i class="icon-base ri ri-edit-box-line me-1"></i>Edit</a>
+                }
+                @if (Model.CanDelete && User.Can(Permissions.WorkshopsDelete))
+                {
+                    <form asp-action="Delete" asp-route-id="@w.Id" method="post"
+                          data-confirm="&quot;@w.Name&quot; will be permanently deleted." data-confirm-title="Delete this workshop?" data-confirm-button="Delete workshop">
+                        <button type="submit" class="btn btn-outline-danger" data-loading-text="Deleting…"><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
+                    </form>
+                }
+            </div>
         </div>
     </div>
-    <div class="d-flex gap-2">
-        @if (Model.CanEdit && User.Can(Permissions.WorkshopsManage))
-        {
-            <a asp-action="Edit" asp-route-id="@w.Id" class="btn btn-outline-primary"><i class="icon-base ri ri-edit-box-line me-1"></i>Edit</a>
-        }
-        @if (Model.CanDelete && User.Can(Permissions.WorkshopsDelete))
-        {
-            <form asp-action="Delete" asp-route-id="@w.Id" method="post" data-confirm="Delete this workshop? This cannot be undone.">
-                <button type="submit" class="btn btn-outline-danger"><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
-            </form>
-        }
+    <div class="card-body py-5">
+        <div class="row g-5">
+            <div class="col-sm-6 col-lg">
+                <div class="ws-fact">
+                    <span class="stat-icon bg-label-primary"><i class="icon-base ri ri-time-line"></i></span>
+                    <div><small>@w.StartDateTime.ToString("dddd")</small><strong>@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</strong></div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg">
+                <div class="ws-fact">
+                    <span class="stat-icon bg-label-info"><i class="icon-base ri @(w.Type == WorkshopType.Online ? "ri-global-line" : "ri-map-pin-line")"></i></span>
+                    <div><small>@(w.Type == WorkshopType.Online ? "Online" : "On-site")</small><strong>@(w.Type == WorkshopType.Online ? "Remote session" : w.Hall?.Name ?? "—")</strong></div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg">
+                <div class="ws-fact">
+                    <span class="stat-icon bg-label-warning"><i class="icon-base ri ri-flag-line"></i></span>
+                    <div><small>Country · currency</small><strong>@countryName · @currency</strong></div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg">
+                <div class="ws-fact">
+                    <span class="stat-icon bg-label-success"><i class="icon-base ri ri-group-line"></i></span>
+                    <div class="flex-grow-1">
+                        <small>Students</small>
+                        <strong>@(Model.RegistrationCount + (w.Capacity.HasValue ? " / " + w.Capacity : ""))</strong>
+                        @if (fill.HasValue)
+                        {
+                            <div class="progress mt-1" style="height: 4px"><div class="progress-bar" style="width: @fill%"></div></div>
+                        }
+                    </div>
+                </div>
+            </div>
+            @if (canSeeExpenses)
+            {
+                <div class="col-sm-6 col-lg">
+                    <div class="ws-fact">
+                        <span class="stat-icon bg-label-danger"><i class="icon-base ri ri-money-dollar-circle-line"></i></span>
+                        <div><small>Expenses</small><strong>@MoneyFormat.Format(Model.TotalExpenses, currency)</strong></div>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 </div>
 
 <div class="row g-6">
-    <!-- Main column -->
+    <!-- Tabs -->
     <div class="col-xl-8">
-        <div class="nav-align-top">
-            <ul class="nav nav-pills mb-4 flex-wrap gap-2" role="tablist">
-                <li class="nav-item"><button type="button" class="nav-link @TabCss("overview")" data-bs-toggle="tab" data-bs-target="#tab-overview" role="tab"><i class="icon-base ri ri-information-line me-1"></i>Overview</button></li>
-                @if (User.Can(Permissions.RegistrationsView))
+        <div class="card">
+            <ul class="nav ws-tabs px-3" role="tablist">
+                <li class="nav-item"><button type="button" class="nav-link @TabCss("overview")" data-bs-toggle="tab" data-bs-target="#tab-overview" data-tab-name="overview" role="tab"><i class="icon-base ri ri-file-list-3-line me-1"></i>Overview</button></li>
+                @if (canSeeStudents)
                 {
-                    <li class="nav-item"><button type="button" class="nav-link @TabCss("registrations")" data-bs-toggle="tab" data-bs-target="#tab-registrations" role="tab"><i class="icon-base ri ri-group-line me-1"></i>Students <span class="badge rounded-pill bg-label-primary ms-1">@Model.RegistrationCount</span></button></li>
+                    <li class="nav-item"><button type="button" class="nav-link @TabCss("registrations")" data-bs-toggle="tab" data-bs-target="#tab-registrations" data-tab-name="registrations" role="tab"><i class="icon-base ri ri-group-line me-1"></i>Students <span class="badge rounded-pill bg-label-primary ms-1">@Model.RegistrationCount</span></button></li>
                 }
-                @if (User.Can(Permissions.ExpensesView))
+                @if (canSeeExpenses)
                 {
-                    <li class="nav-item"><button type="button" class="nav-link @TabCss("expenses")" data-bs-toggle="tab" data-bs-target="#tab-expenses" role="tab"><i class="icon-base ri ri-money-dollar-circle-line me-1"></i>Expenses</button></li>
+                    <li class="nav-item"><button type="button" class="nav-link @TabCss("expenses")" data-bs-toggle="tab" data-bs-target="#tab-expenses" data-tab-name="expenses" role="tab"><i class="icon-base ri ri-wallet-3-line me-1"></i>Expenses <span class="badge rounded-pill bg-label-secondary ms-1">@Model.Expenses.Count</span></button></li>
                 }
-                <li class="nav-item"><button type="button" class="nav-link @TabCss("history")" data-bs-toggle="tab" data-bs-target="#tab-history" role="tab"><i class="icon-base ri ri-history-line me-1"></i>History</button></li>
+                <li class="nav-item"><button type="button" class="nav-link @TabCss("history")" data-bs-toggle="tab" data-bs-target="#tab-history" data-tab-name="history" role="tab"><i class="icon-base ri ri-history-line me-1"></i>History</button></li>
             </ul>
 
-            <div class="tab-content p-0 bg-transparent shadow-none">
+            <div class="tab-content p-0">
                 <!-- Overview -->
                 <div class="tab-pane fade @PaneCss("overview")" id="tab-overview" role="tabpanel">
-                    <div class="card">
-                        <div class="card-body">
-                            <dl class="row mb-0">
-                                <dt class="col-sm-4">Date</dt>
-                                <dd class="col-sm-8">@w.StartDateTime.ToString("dddd, dd MMMM yyyy")</dd>
-                                <dt class="col-sm-4">Time</dt>
-                                <dd class="col-sm-8">@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</dd>
-                                <dt class="col-sm-4">Type</dt>
-                                <dd class="col-sm-8">@(w.Type == WorkshopType.Online ? "Online" : "On-site")</dd>
-                                @if (w.Type == WorkshopType.OnSite)
-                                {
-                                    <dt class="col-sm-4">Hall / location</dt>
-                                    <dd class="col-sm-8">@w.Hall?.Name @(w.Hall?.Location != null ? "— " + w.Hall.Location : "")</dd>
-                                }
-                                else if (!string.IsNullOrEmpty(w.MeetingLink))
-                                {
-                                    <dt class="col-sm-4">Meeting link</dt>
-                                    <dd class="col-sm-8"><a href="@w.MeetingLink" target="_blank" rel="noopener">@w.MeetingLink</a></dd>
-                                }
-                                <dt class="col-sm-4">Capacity</dt>
-                                <dd class="col-sm-8">@(w.Capacity.HasValue ? $"{Model.RegistrationCount} / {w.Capacity} registered" : $"{Model.RegistrationCount} registered (no limit)")</dd>
-                                <dt class="col-sm-4">Created</dt>
-                                <dd class="col-sm-8">@w.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") by @(w.CreatedBy ?? "—")</dd>
-                            </dl>
-
-                            @if (!string.IsNullOrWhiteSpace(w.Description))
-                            {
-                                <hr class="my-5" />
-                                <h6>Description</h6>
-                                <p class="content-pre mb-0">@w.Description</p>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(w.Content))
-                            {
-                                <hr class="my-5" />
-                                <h6>Content / agenda</h6>
-                                <p class="content-pre mb-0">@w.Content</p>
-                            }
-                        </div>
+                    <div class="card-body">
+                        @if (string.IsNullOrWhiteSpace(w.Content))
+                        {
+                            <div class="empty-state">
+                                <span class="stat-icon bg-label-secondary"><i class="icon-base ri ri-file-text-line"></i></span>
+                                <h6 class="mb-1">No agenda yet</h6>
+                                <p class="text-body-secondary small mb-0">Add topics, trainer and requirements so students know what to expect.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <h6 class="text-body-secondary text-uppercase small mb-3">Content / agenda</h6>
+                            <p class="content-pre mb-0">@w.Content</p>
+                        }
+                        @if (w.Type == WorkshopType.Online && !string.IsNullOrEmpty(w.MeetingLink))
+                        {
+                            <hr class="my-5" />
+                            <h6 class="text-body-secondary text-uppercase small mb-2">Meeting link</h6>
+                            <a href="@w.MeetingLink" target="_blank" rel="noopener">@w.MeetingLink</a>
+                        }
+                        @if (w.Type == WorkshopType.OnSite && w.Hall?.Location != null)
+                        {
+                            <hr class="my-5" />
+                            <h6 class="text-body-secondary text-uppercase small mb-2">Location</h6>
+                            <p class="mb-0">@w.Hall.Name — @w.Hall.Location</p>
+                        }
                     </div>
                 </div>
 
-                <!-- Registrations -->
-                @if (User.Can(Permissions.RegistrationsView))
+                <!-- Students -->
+                @if (canSeeStudents)
                 {
                     <div class="tab-pane fade @PaneCss("registrations")" id="tab-registrations" role="tabpanel">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Registered students</h5>
-                                @if (Model.RegistrationCount > 0)
-                                {
-                                    <a asp-action="ExportRegistrations" asp-route-id="@w.Id" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-download-2-line me-1"></i>Export CSV</a>
-                                }
+                        @if (Model.Registrations.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <span class="stat-icon bg-label-primary"><i class="icon-base ri ri-user-add-line"></i></span>
+                                <h6 class="mb-1">No students yet</h6>
+                                <p class="text-body-secondary small mb-0">@(w.RegistrationOpen ? "Share the registration link to start receiving applications." : "Open registration to get a link you can share with students.")</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center px-5 pt-4 pb-2">
+                                <span class="text-body-secondary small">@Model.RegistrationCount registered</span>
+                                <a asp-action="ExportRegistrations" asp-route-id="@w.Id" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-download-2-line me-1"></i>Export to Excel (CSV)</a>
                             </div>
                             <div class="table-responsive">
                                 <table class="table">
-                                    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Organization</th><th>Registered</th></tr></thead>
+                                    <thead><tr><th>Student</th><th>Phone</th><th>Organization</th><th>Registered</th></tr></thead>
                                     <tbody class="table-border-bottom-0">
-                                    @if (Model.Registrations.Count == 0)
-                                    {
-                                        <tr><td colspan="5" class="text-center text-body-secondary py-6">No students have registered yet.</td></tr>
-                                    }
                                     @foreach (var r in Model.Registrations)
                                     {
                                         <tr>
-                                            <td class="fw-medium">@r.FullName @if (r.Language == "ar") { <span class="badge bg-label-secondary ms-1">AR</span> }</td>
-                                            <td><a href="mailto:@r.Email">@r.Email</a></td>
-                                            <td class="text-nowrap">@r.Phone</td>
+                                            <td>
+                                                <div class="fw-medium text-heading">@r.FullName @if (r.Language == "ar") { <span class="badge bg-label-secondary ms-1">AR</span> }</div>
+                                                <small><a href="mailto:@r.Email">@r.Email</a></small>
+                                            </td>
+                                            <td class="text-nowrap" dir="ltr">@r.Phone</td>
                                             <td>@r.Organization</td>
-                                            <td class="text-nowrap">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                                            <td class="text-nowrap small">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
                                         </tr>
                                     }
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        }
                     </div>
                 }
 
                 <!-- Expenses -->
-                @if (User.Can(Permissions.ExpensesView))
+                @if (canSeeExpenses)
                 {
+                    var canManage = User.Can(Permissions.ExpensesManage);
                     <div class="tab-pane fade @PaneCss("expenses")" id="tab-expenses" role="tabpanel">
-                        <div class="card">
-                            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <div>
-                                    <h5 class="mb-0">Expenses</h5>
-                                    <small class="text-body-secondary">Total: <strong class="text-heading">@Model.TotalExpenses.ToString("N2") @currency</strong></small>
-                                </div>
-                                @if (User.Can(Permissions.ExpensesManage))
-                                {
-                                    if (Model.CanAddExpense)
-                                    {
-                                        <a asp-controller="Expenses" asp-action="Create" asp-route-workshopId="@w.Id" class="btn btn-sm btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add expense</a>
-                                    }
-                                    else
-                                    {
-                                        <span class="small text-body-secondary">Expenses can be added once the workshop is Ongoing.</span>
-                                    }
-                                }
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-5 pt-4 pb-2">
+                            <div>
+                                <span class="text-body-secondary small">Total</span>
+                                <span class="fw-semibold text-heading ms-1">@MoneyFormat.Format(Model.TotalExpenses, currency)</span>
                             </div>
+                            @if (canManage && Model.CanAddExpense)
+                            {
+                                <a asp-controller="Expenses" asp-action="Create" asp-route-workshopId="@w.Id" class="btn btn-sm btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add expense</a>
+                            }
+                        </div>
+                        @if (Model.Expenses.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <span class="stat-icon bg-label-secondary"><i class="icon-base ri ri-wallet-3-line"></i></span>
+                                <h6 class="mb-1">No expenses recorded</h6>
+                                <p class="text-body-secondary small mb-0">@(Model.CanAddExpense ? "Add trainer fees, hall rental, catering and other costs in " + currency + "." : "Expenses can be added once the workshop is started (Ongoing).")</p>
+                            </div>
+                        }
+                        else
+                        {
                             <div class="table-responsive">
                                 <table class="table">
-                                    <thead><tr><th>Date</th><th>Type</th><th>Description</th><th class="text-end">Amount (@currency)</th><th>Entered by</th>@if (User.Can(Permissions.ExpensesManage)) { <th class="text-end">Actions</th> }</tr></thead>
+                                    <thead><tr><th>Expense</th><th>Date</th><th class="text-end">Amount (@currency)</th><th>Entered by</th>@if (canManage) { <th></th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
-                                    @if (Model.Expenses.Count == 0)
-                                    {
-                                        <tr><td colspan="6" class="text-center text-body-secondary py-6">No expenses recorded.</td></tr>
-                                    }
                                     @foreach (var e in Model.Expenses)
                                     {
-                                        <tr>
+                                        <tr class="@(highlight == e.Id.ToString() ? "row-highlight" : "")">
+                                            <td>
+                                                <div class="fw-medium text-heading">@(e.ExpenseCategory?.Name)</div>
+                                                @if (!string.IsNullOrWhiteSpace(e.Description)) { <small class="text-body-secondary">@e.Description</small> }
+                                            </td>
                                             <td class="text-nowrap">@e.ExpenseDate.ToString("dd MMM yyyy")</td>
-                                            <td>@e.ExpenseCategory?.Name</td>
-                                            <td>@e.Description</td>
-                                            <td class="text-end fw-medium">@e.Amount.ToString("N2")</td>
-                                            <td class="small">@(e.CreatedBy + (e.UpdatedBy != null ? $" (edited by {e.UpdatedBy})" : ""))</td>
-                                            @if (User.Can(Permissions.ExpensesManage))
+                                            <td class="text-end fw-medium text-nowrap">@e.Amount.ToString("N2")</td>
+                                            <td class="small">@(e.UpdatedBy ?? e.CreatedBy)</td>
+                                            @if (canManage)
                                             {
                                                 <td class="text-end text-nowrap">
                                                     <a asp-controller="Expenses" asp-action="Edit" asp-route-id="@e.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
-                                                    <form asp-controller="Expenses" asp-action="Delete" asp-route-id="@e.Id" method="post" class="d-inline" data-confirm="Delete this expense?">
-                                                        <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete"><i class="icon-base ri ri-delete-bin-7-line"></i></button>
+                                                    <form asp-controller="Expenses" asp-action="Delete" asp-route-id="@e.Id" method="post" class="d-inline"
+                                                          data-confirm="@MoneyFormat.Format(e.Amount, currency) (@(e.ExpenseCategory?.Name)) will be removed from this workshop." data-confirm-title="Delete this expense?" data-confirm-button="Delete">
+                                                        <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
                                                     </form>
                                                 </td>
                                             }
                                         </tr>
                                     }
                                     </tbody>
-                                    @if (Model.Expenses.Count > 0)
-                                    {
-                                        <tfoot><tr><th colspan="3">Total</th><th class="text-end">@Model.TotalExpenses.ToString("N2")</th><th colspan="2"></th></tr></tfoot>
-                                    }
+                                    <tfoot><tr><th colspan="2">Total</th><th class="text-end">@Model.TotalExpenses.ToString("N2")</th><th colspan="2"></th></tr></tfoot>
                                 </table>
                             </div>
-                        </div>
+                        }
                     </div>
                 }
 
                 <!-- History -->
                 <div class="tab-pane fade @PaneCss("history")" id="tab-history" role="tabpanel">
-                    <div class="card">
-                        <div class="card-body">
-                            <ul class="timeline-simple">
+                    <div class="card-body">
+                        <ul class="timeline-simple">
+                            <li>
+                                <div class="fw-medium">Created</div>
+                                <small class="text-body-secondary">@w.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(w.CreatedBy ?? "—")</small>
+                            </li>
+                            @foreach (var h in Model.History)
+                            {
                                 <li>
-                                    <div class="fw-medium">Created as Pending</div>
-                                    <small class="text-body-secondary">@w.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") · @(w.CreatedBy ?? "—")</small>
+                                    <div class="fw-medium">@h.FromStatus → @h.ToStatus</div>
+                                    <small class="text-body-secondary">@h.ChangedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(h.ChangedBy ?? "—")</small>
                                 </li>
-                                @foreach (var h in Model.History)
-                                {
-                                    <li>
-                                        <div class="fw-medium">@h.FromStatus → @h.ToStatus</div>
-                                        <small class="text-body-secondary">@h.ChangedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") · @(h.ChangedBy ?? "—")</small>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
+                            }
+                            @if (w.UpdatedAt.HasValue)
+                            {
+                                <li>
+                                    <div class="fw-medium">Last change</div>
+                                    <small class="text-body-secondary">@w.UpdatedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(w.UpdatedBy ?? "—")</small>
+                                </li>
+                            }
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Side column -->
+    <!-- Side panels -->
     <div class="col-xl-4">
         <div class="card mb-6">
-            <h5 class="card-header">Workshop status</h5>
+            <div class="card-header pb-2"><h5 class="mb-0">Progress</h5></div>
             <div class="card-body">
-                <div class="d-flex justify-content-between mb-4">
+                <div class="ws-steps mb-5">
                     @foreach (var s in Enum.GetValues<WorkshopStatus>())
                     {
-                        var reached = (int)w.Status >= (int)s;
-                        <div class="text-center flex-fill">
-                            <span class="stat-icon @(reached ? "bg-primary text-white" : "bg-label-secondary")"><i class="icon-base ri @(s == WorkshopStatus.Pending ? "ri-time-line" : s == WorkshopStatus.Ongoing ? "ri-play-line" : "ri-check-line")"></i></span>
-                            <div class="small mt-1 @(w.Status == s ? "fw-semibold text-heading" : "text-body-secondary")">@s</div>
+                        var css = (int)w.Status > (int)s || w.Status == WorkshopStatus.Completed ? "done" : w.Status == s ? "current" : "";
+                        <div class="ws-step @css">
+                            <span class="dot"><i class="icon-base ri @(css == "done" ? "ri-check-line" : s == WorkshopStatus.Pending ? "ri-time-line" : s == WorkshopStatus.Ongoing ? "ri-play-line" : "ri-flag-2-line")"></i></span>
+                            <span class="lbl">@s</span>
                         </div>
                     }
                 </div>
                 @if (Model.NextStatus.HasValue && User.Can(Permissions.WorkshopsChangeStatus))
                 {
                     var next = Model.NextStatus.Value;
-                    var note = next == WorkshopStatus.Completed ? "Completing a workshop closes registration and makes it read-only." : "Start the workshop to allow recording expenses.";
-                    <form asp-action="AdvanceStatus" method="post" data-confirm="Change status to @next? This cannot be undone.">
+                    var isStart = next == WorkshopStatus.Ongoing;
+                    <form asp-action="AdvanceStatus" method="post"
+                          data-confirm="@(isStart ? "The workshop will move to Ongoing and you can start recording expenses." : "Registration will close and the workshop becomes read-only. This can't be undone.")"
+                          data-confirm-title="@(isStart ? "Start this workshop?" : "Mark as completed?")"
+                          data-confirm-button="@(isStart ? "Start workshop" : "Complete workshop")" data-confirm-style="primary">
                         <input type="hidden" name="id" value="@w.Id" />
                         <input type="hidden" name="target" value="@next" />
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="icon-base ri @(next == WorkshopStatus.Ongoing ? "ri-play-circle-line" : "ri-checkbox-circle-line") me-1"></i>Mark as @next
+                        <button type="submit" class="btn btn-primary w-100" data-loading-text="Updating…">
+                            <i class="icon-base ri @(isStart ? "ri-play-circle-line" : "ri-checkbox-circle-line") me-1"></i>@(isStart ? "Start workshop" : "Mark as completed")
                         </button>
                     </form>
-                    <p class="small text-body-secondary mt-3 mb-0">@note</p>
                 }
                 else if (!Model.NextStatus.HasValue)
                 {
-                    <p class="small text-body-secondary mb-0">This workshop is completed and read-only.</p>
+                    <p class="small text-body-secondary mb-0 text-center"><i class="icon-base ri ri-lock-line me-1"></i>Completed workshops are read-only.</p>
                 }
             </div>
         </div>
 
         <div class="card">
-            <h5 class="card-header">Public registration</h5>
+            <div class="card-header pb-2 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Registration</h5>
+                @if (w.RegistrationOpen) { <span class="badge bg-label-primary">Open</span> } else { <span class="badge bg-label-secondary">Closed</span> }
+            </div>
             <div class="card-body">
                 @if (w.RegistrationOpen && Model.RegistrationUrl != null)
                 {
-                    <p class="small mb-2">Share this link with students. The page works in Arabic and English.</p>
+                    <p class="small text-body-secondary mb-3">Share this link with students. They can switch between Arabic and English on the page.</p>
                     <div class="input-group mb-3">
                         <input id="reg-link" type="text" class="form-control link-box" value="@Model.RegistrationUrl" readonly />
-                        <button type="button" class="btn btn-outline-primary" data-copy-target="#reg-link"><i class="icon-base ri ri-file-copy-line me-1"></i>Copy</button>
+                        <button type="button" class="btn btn-primary" data-copy-target="#reg-link"><i class="icon-base ri ri-file-copy-line me-1"></i>Copy</button>
                     </div>
-                    <div class="d-flex gap-3 small mb-4">
-                        <a href="@Model.RegistrationUrl" target="_blank" rel="noopener">Open (English)</a>
-                        <a href="@(Model.RegistrationUrl)?lang=ar" target="_blank" rel="noopener">فتح (العربية)</a>
+                    <div class="d-flex gap-2 mb-4">
+                        <a href="@Model.RegistrationUrl" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary flex-fill">Preview (EN)</a>
+                        <a href="@(Model.RegistrationUrl)?lang=ar" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary flex-fill">معاينة (AR)</a>
                     </div>
                     @if (User.Can(Permissions.RegistrationsManage))
                     {
-                        <form asp-action="CloseRegistration" method="post" class="mb-2" data-confirm="Close registration? The link will stop accepting students.">
+                        <form asp-action="CloseRegistration" method="post" class="mb-2"
+                              data-confirm="Students who open the link will see that registration is closed. You can reopen it later." data-confirm-title="Close registration?" data-confirm-button="Close registration">
                             <input type="hidden" name="id" value="@w.Id" />
-                            <button type="submit" class="btn btn-outline-danger w-100"><i class="icon-base ri ri-lock-line me-1"></i>Close registration</button>
+                            <button type="submit" class="btn btn-outline-danger w-100" data-loading-text="Closing…"><i class="icon-base ri ri-lock-line me-1"></i>Close registration</button>
                         </form>
-                        <form asp-action="RegenerateLink" method="post" data-confirm="Create a new link? The current link will stop working.">
+                        <form asp-action="RegenerateLink" method="post"
+                              data-confirm="The current link will stop working. Anyone you already sent it to will need the new one." data-confirm-title="Create a new link?" data-confirm-button="Create new link">
                             <input type="hidden" name="id" value="@w.Id" />
-                            <button type="submit" class="btn btn-text-secondary btn-sm w-100">Generate a new link</button>
+                            <button type="submit" class="btn btn-text-secondary btn-sm w-100">Create a new link</button>
                         </form>
                     }
                 }
@@ -281,12 +356,12 @@
                 }
                 else
                 {
-                    <p class="small text-body-secondary">Registration is closed. Opening it creates a public link students can use to apply.</p>
+                    <p class="small text-body-secondary mb-4">Open registration to get a public link students can use to apply.</p>
                     @if (User.Can(Permissions.RegistrationsManage))
                     {
                         <form asp-action="OpenRegistration" method="post">
                             <input type="hidden" name="id" value="@w.Id" />
-                            <button type="submit" class="btn btn-primary w-100"><i class="icon-base ri ri-lock-unlock-line me-1"></i>Open registration</button>
+                            <button type="submit" class="btn btn-primary w-100" data-loading-text="Opening…"><i class="icon-base ri ri-door-open-line me-1"></i>Open registration</button>
                         </form>
                     }
                 }

@@ -26,7 +26,7 @@
                             <input asp-for="Amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="0.00" />
                             <label asp-for="Amount"></label>
                         </div>
-                        <span class="input-group-text">@AppOptions.Value.CurrencyCode</span>
+                        <span class="input-group-text">@Model.CurrencyCode</span>
                     </div>
                     <span asp-validation-for="Amount" class="text-danger small"></span>
                 </div>
@@ -44,7 +44,11 @@
                 <span asp-validation-for="Description" class="text-danger small"></span>
             </div>
 
-            <button type="submit" class="btn btn-primary me-2">Save expense</button>
+            <button type="submit" class="btn btn-primary me-2">@(Model.Id == 0 ? "Add expense" : "Save changes")</button>
+            @if (Model.Id == 0)
+            {
+                <button type="submit" name="addAnother" value="true" class="btn btn-outline-primary me-2">Add &amp; add another</button>
+            }
             <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="expenses" class="btn btn-outline-secondary">Cancel</a>
         </form>
     </div>

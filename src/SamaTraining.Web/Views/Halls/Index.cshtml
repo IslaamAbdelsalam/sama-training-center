@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Halls & Locations";
     var uses = (Dictionary<int, int>)ViewBag.Uses;
+    var highlight = TempData["Highlight"] as string;
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
     <div>
@@ -25,7 +26,7 @@
             @foreach (var h in Model)
             {
                 var used = uses.GetValueOrDefault(h.Id);
-                <tr>
+                <tr class="@(highlight == h.Id.ToString() ? "row-highlight" : "")">
                     <td class="fw-medium">@h.Name</td>
                     <td>@h.Location</td>
                     <td>@(h.Capacity?.ToString() ?? "—")</td>
@@ -38,8 +39,8 @@
                         <a asp-action="Edit" asp-route-id="@h.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
                         @if (used == 0)
                         {
-                            <form asp-action="Delete" asp-route-id="@h.Id" method="post" class="d-inline" data-confirm="Delete the hall &quot;@h.Name&quot;?">
-                                <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete"><i class="icon-base ri ri-delete-bin-7-line"></i></button>
+                            <form asp-action="Delete" asp-route-id="@h.Id" method="post" class="d-inline" data-confirm="&quot;@h.Name&quot; will be removed from the halls list." data-confirm-title="Delete this hall?" data-confirm-button="Delete">
+                                <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
                             </form>
                         }
                     </td>

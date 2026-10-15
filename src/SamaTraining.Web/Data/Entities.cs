@@ -81,6 +81,14 @@ public class Workshop
 
     public WorkshopType Type { get; set; }
 
+    /// <summary>Country where the workshop runs (e.g. "SD", "EG"). Decides the currency.</summary>
+    [Required, MaxLength(2)]
+    public string Country { get; set; } = "SD";
+
+    /// <summary>Currency for this workshop's expenses (e.g. "SDG", "EGP"), set from the country.</summary>
+    [Required, MaxLength(3)]
+    public string CurrencyCode { get; set; } = "SDG";
+
     public int? HallId { get; set; }
     public Hall? Hall { get; set; }
 

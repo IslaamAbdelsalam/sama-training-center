@@ -69,6 +69,26 @@
             <div class="card">
                 <h5 class="card-header">Delivery</h5>
                 <div class="card-body">
+                    <div class="form-floating form-floating-outline mb-2">
+                        <select id="Country" name="@(Model.CountryLocked ? "" : "Country")" class="form-select" @(Model.CountryLocked ? "disabled" : "")>
+                            <option value="">Choose…</option>
+                            @foreach (var c in AppOptions.Value.GetCountries())
+                            {
+                                <!option value="@c.Code" data-currency="@c.Currency" selected="@(Model.Country == c.Code)">@c.Name</!option>
+                            }
+                        </select>
+                        <label for="Country">Country</label>
+                    </div>
+                    @if (Model.CountryLocked)
+                    {
+                        <input type="hidden" name="Country" value="@Model.Country" />
+                    }
+                    <div class="form-text mb-5">
+                        Currency: <span class="badge bg-label-primary" id="currency-hint">—</span>
+                        @if (Model.CountryLocked) { <span class="d-block mt-1">Locked because expenses are already recorded.</span> }
+                        else { <span class="d-block mt-1">All expenses for this workshop use this currency.</span> }
+                    </div>
+                    <span asp-validation-for="Country" class="text-danger small d-block mb-3"></span>
                     <div class="form-floating form-floating-outline mb-5">
                         <select asp-for="Type" class="form-select" asp-items="Html.GetEnumSelectList<WorkshopType>()">
                             <option value="">Choose…</option>
@@ -99,8 +119,15 @@
         </div>
 
         <div class="col-12">
-            <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>Save workshop</button>
-            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@(Model.Id == 0 ? "Create workshop" : "Save changes")</button>
+            @if (Model.Id == 0)
+            {
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            }
+            else
+            {
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+            }
         </div>
     </div>
 </form>

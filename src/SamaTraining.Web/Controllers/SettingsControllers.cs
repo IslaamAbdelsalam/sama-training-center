@@ -62,7 +62,8 @@ public class ExpenseCategoriesController : AppController
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
 
-        Success($"Expense category \"{entity.Name}\" saved.");
+        Success(model.Id == 0 ? "Category added" : "Category updated", $"\"{entity.Name}\" is saved.");
+        Highlight(entity.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -74,13 +75,13 @@ public class ExpenseCategoriesController : AppController
 
         if (await _db.WorkshopExpenses.AnyAsync(e => e.ExpenseCategoryId == id))
         {
-            Error($"\"{c.Name}\" is used by existing expenses, so it cannot be deleted. Deactivate it instead.");
+            Error("Category can't be deleted", $"\"{c.Name}\" is used by existing expenses. Edit it and switch it to inactive instead.");
             return RedirectToAction(nameof(Index));
         }
 
         _db.ExpenseCategories.Remove(c);
         await _db.SaveChangesAsync();
-        Success($"Expense category \"{c.Name}\" deleted.");
+        Success("Category deleted", $"\"{c.Name}\" was removed.");
         return RedirectToAction(nameof(Index));
     }
 }
@@ -142,7 +143,8 @@ public class HallsController : AppController
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
 
-        Success($"Hall \"{entity.Name}\" saved.");
+        Success(model.Id == 0 ? "Hall added" : "Hall updated", $"\"{entity.Name}\" is saved.");
+        Highlight(entity.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -154,13 +156,13 @@ public class HallsController : AppController
 
         if (await _db.Workshops.AnyAsync(w => w.HallId == id))
         {
-            Error($"\"{h.Name}\" is used by existing workshops, so it cannot be deleted. Deactivate it instead.");
+            Error("Hall can't be deleted", $"\"{h.Name}\" is used by existing workshops. Edit it and switch it to inactive instead.");
             return RedirectToAction(nameof(Index));
         }
 
         _db.Halls.Remove(h);
         await _db.SaveChangesAsync();
-        Success($"Hall \"{h.Name}\" deleted.");
+        Success("Hall deleted", $"\"{h.Name}\" was removed.");
         return RedirectToAction(nameof(Index));
     }
 }

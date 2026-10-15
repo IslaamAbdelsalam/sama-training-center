@@ -49,7 +49,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var client = await _app.SignedInAdminAsync();
 
         foreach (var url in new[] { "/", "/Workshops", "/Workshops/Create", "/ExpenseCategories", "/ExpenseCategories/Create",
-                     "/Halls", "/Halls/Create", "/Users", "/Users/Create", "/Roles", "/Roles/Create", "/Account/ChangePassword" })
+                     "/Halls", "/Halls/Create", "/Users", "/Users/Create", "/Roles", "/Roles/Create", "/Account/ChangePassword", "/Reports" })
         {
             var res = await client.GetAsync(url);
             Assert.True(res.StatusCode == HttpStatusCode.OK, $"{url} returned {(int)res.StatusCode}");
@@ -73,6 +73,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
             ["StartTime"] = "09:00",
             ["EndTime"] = "13:00",
             ["Type"] = "Online",
+            ["Country"] = "SD",
             ["MeetingLink"] = "https://meet.example.com/pm",
             ["Capacity"] = "30",
             ["Description"] = "Introduction to planning and tracking projects."
@@ -115,7 +116,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         }));
         Assert.Equal(HttpStatusCode.Redirect, ok.StatusCode);
         var done = await student.GetStringAsync(ok.Headers.Location!.ToString());
-        Assert.Contains("Registration received", done);
+        Assert.Contains("registered!", done);
 
         // Same email again is blocked
         enPage = await student.GetStringAsync($"/register/{token}?lang=en");
@@ -155,6 +156,32 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
 
         details = await client.GetStringAsync(detailsUrl + "?tab=expenses");
         Assert.Contains("125.50", details);
+        Assert.Contains("SDG", details);
+        Assert.Contains("Expense added", details); // toast after redirect
+
+        // Country (and so currency) is locked once expenses exist
+        var editPage = await client.GetStringAsync($"/Workshops/Edit/{id}");
+        var changeCountry = await client.PostAsync("/Workshops/Save", Form(editPage, new()
+        {
+            ["Id"] = id.ToString(),
+            ["Name"] = "Project Management Essentials",
+            ["Date"] = DateTime.Today.AddDays(10).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "09:00",
+            ["EndTime"] = "13:00",
+            ["Type"] = "Online",
+            ["Country"] = "EG"
+        }));
+        Assert.Equal(HttpStatusCode.OK, changeCountry.StatusCode);
+        Assert.Contains("can&#x27;t change", await changeCountry.Content.ReadAsStringAsync());
+        Assert.Equal("SDG", await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.CurrencyCode).SingleAsync()));
+
+        // Reports include the workshop and its SDG expenses
+        var report = await client.GetStringAsync($"/Reports?From={DateTime.Today.AddDays(-1):yyyy-MM-dd}&To={DateTime.Today.AddDays(30):yyyy-MM-dd}");
+        Assert.Contains("Project Management Essentials", report);
+        Assert.Contains("125.50 SDG", report);
+        var reportCsv = await client.GetAsync($"/Reports/Export?From={DateTime.Today.AddDays(-1):yyyy-MM-dd}&To={DateTime.Today.AddDays(30):yyyy-MM-dd}");
+        Assert.Equal("text/csv", reportCsv.Content.Headers.ContentType!.MediaType);
+        Assert.Contains("125.50", await reportCsv.Content.ReadAsStringAsync());
 
         // Negative amount is rejected
         expensePage = await client.GetStringAsync($"/Expenses/Create?workshopId={id}");
@@ -174,7 +201,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var edit = await client.GetAsync($"/Workshops/Edit/{id}");
         Assert.Equal(HttpStatusCode.Redirect, edit.StatusCode);
         var closed = await student.GetStringAsync($"/register/{token}");
-        Assert.Contains("Registration closed", closed);
+        Assert.Contains("Registration is closed", closed);
 
         // Category in use cannot be deleted
         var catPage = await client.GetStringAsync("/ExpenseCategories");
@@ -287,5 +314,51 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var client = _app.CreateBrowser();
         var html = await client.GetStringAsync("/register/doesnotexist");
         Assert.Contains("Link not found", html);
+    }
+
+    [Fact] // Currency follows the workshop's country: Egypt → EGP, Sudan → SDG
+    public async Task WorkshopCurrency_FollowsCountry()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0",
+            ["Name"] = "Cairo Volunteers Training",
+            ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "10:00",
+            ["EndTime"] = "12:00",
+            ["Type"] = "Online",
+            ["Country"] = "EG"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
+        var id = int.Parse(res.Headers.Location!.ToString().Split('/').Last().Split('?')[0]);
+        var currency = await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.CurrencyCode).SingleAsync());
+        Assert.Equal("EGP", currency);
+
+        var details = await client.GetStringAsync(res.Headers.Location!.ToString());
+        Assert.Contains("Workshop created", details); // success toast
+        Assert.Contains("Egypt · EGP", details);
+    }
+
+    [Fact]
+    public async Task UnknownCountry_IsRejected()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0",
+            ["Name"] = "Bad country",
+            ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "10:00",
+            ["EndTime"] = "12:00",
+            ["Type"] = "Online",
+            ["Country"] = "XX"
+        }));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("Choose a country from the list", html);
+        Assert.Contains("Not saved yet", html); // validation toast
     }
 }

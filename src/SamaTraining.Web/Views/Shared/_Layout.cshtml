@@ -63,6 +63,16 @@
                     }
                 }
 
+                @if (User.Can(Permissions.ReportsView))
+                {
+                    <li class="menu-item @Active("Reports")">
+                        <a asp-controller="Reports" asp-action="Index" class="menu-link">
+                            <i class="menu-icon icon-base ri ri-bar-chart-box-line"></i>
+                            <div>Reports</div>
+                        </a>
+                    </li>
+                }
+
                 @if (User.Can(Permissions.SettingsManage))
                 {
                     <li class="menu-header mt-5"><span class="menu-header-text">Settings</span></li>
@@ -142,7 +152,7 @@
                                             </div>
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-0">@fullName</h6>
-                                                <small class="text-body-secondary">@User.Identity?.Name</small>
+                                                <small class="text-body-secondary">@(User.Identity?.Name)</small>
                                             </div>
                                         </div>
                                     </div>

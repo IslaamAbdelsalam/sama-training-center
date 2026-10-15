@@ -6,136 +6,158 @@
     var isAr = l == "ar";
     var other = isAr ? "en" : "ar";
     var w = Model.Workshop;
+    var country = w != null ? AppOptions.Value.FindCountry(w.Country) : null;
+    var countryName = country == null ? null : (isAr ? country.NameAr : country.Name);
     string Err(string field) => ViewData.ModelState[field]?.Errors.FirstOrDefault()?.ErrorMessage ?? "";
     string Invalid(string field) => ViewData.ModelState[field]?.Errors.Count > 0 ? "is-invalid" : "";
     var actionUrl = Url.RouteUrl("public-registration", new { token = Model.Token, lang = l });
     var switchUrl = Url.RouteUrl("public-registration", new { token = Model.Token, lang = other });
+    var pageTitle = T.Get("Title", l) + (w != null ? " — " + w.Name : "");
+    var culture = System.Globalization.CultureInfo.GetCultureInfo(isAr ? "ar-EG" : "en-GB");
 }
 <!doctype html>
 <html lang="@l" dir="@(isAr ? "rtl" : "ltr")" class="layout-wide" data-assets-path="/assets/">
 <head>
     <partial name="_Head" />
-    <title>@T.Get("Title", l)@(w != null ? " — " + w.Name : "") | @AppOptions.Value.OrganizationName</title>
+    <title>@pageTitle | @AppOptions.Value.OrganizationName</title>
 </head>
-<body>
-<div class="public-wrapper py-8 px-4">
+<body class="public-body">
+<div class="public-wrapper py-6 py-md-8 px-4">
     <div class="public-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div class="d-flex align-items-center gap-2">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div class="public-brand">
                 <span class="app-brand-logo sama-logo"><i class="icon-base ri ri-graduation-cap-fill"></i></span>
-                <span class="fw-semibold text-heading">@AppOptions.Value.SystemName</span>
+                <span>@AppOptions.Value.SystemName</span>
             </div>
-            <a href="@switchUrl" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-translate-2 me-1"></i>@T.Get("Language", l)</a>
+            @if (Model.State != "success")
+            {
+                <a href="@switchUrl" class="btn btn-sm btn-outline-secondary lang-switch"><i class="icon-base ri ri-translate-2 me-1"></i>@T.Get("Language", l)</a>
+            }
         </div>
 
-        <div class="card">
-            @if (w != null)
+        <div class="pub-panel">
+            @if (w != null && Model.State is "form" or "full" or "closed")
             {
-                <div class="public-header p-6">
-                    <p class="mb-1 opacity-75">@T.Get("Title", l)</p>
-                    <h4 class="mb-3" dir="auto">@w.Name</h4>
-                    <div class="d-flex flex-wrap gap-4 small">
-                        <span><i class="icon-base ri ri-calendar-line me-1"></i>@w.StartDateTime.ToString("dd/MM/yyyy")</span>
-                        <span><i class="icon-base ri ri-time-line me-1"></i><span dir="ltr">@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</span></span>
-                        <span>
-                            @if (w.Type == WorkshopType.Online)
-                            {
-                                <i class="icon-base ri ri-global-line me-1"></i>@T.Get("Online", l)
-                            }
-                            else
-                            {
-                                <i class="icon-base ri ri-map-pin-line me-1"></i>@(w.Hall?.Name ?? T.Get("OnSite", l))
-                            }
-                        </span>
+                <div class="p-5 p-md-6 pb-0">
+                    <div class="pub-eyebrow mb-2">@T.Get("Title", l)</div>
+                    <h3 class="mb-4 fw-semibold" dir="auto">@w.Name</h3>
+                    <div class="pub-chips mb-2">
+                        <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("dddd d MMMM yyyy", culture)</span>
+                        <span class="pub-chip"><i class="icon-base ri ri-time-line"></i><span dir="ltr">@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</span></span>
+                        @if (w.Type == WorkshopType.Online)
+                        {
+                            <span class="pub-chip"><i class="icon-base ri ri-global-line"></i>@T.Get("Online", l)</span>
+                        }
+                        else
+                        {
+                            <span class="pub-chip"><i class="icon-base ri ri-map-pin-line"></i>@(w.Hall?.Name ?? T.Get("OnSite", l))@(countryName != null ? (isAr ? "، " : ", ") + countryName : "")</span>
+                        }
                         @if (Model.SeatsLeft.HasValue && Model.State == "form")
                         {
-                            <span><i class="icon-base ri ri-user-line me-1"></i>@T.Get("SeatsLeft", l): @Model.SeatsLeft</span>
+                            <span class="pub-chip"><i class="icon-base ri ri-user-line"></i>@T.Get("SeatsLeft", l): @Model.SeatsLeft</span>
                         }
                     </div>
+                    @if (Model.State == "form" && (!string.IsNullOrWhiteSpace(w.Description) || !string.IsNullOrWhiteSpace(w.Content)))
+                    {
+                        <div class="pub-about mt-4" dir="auto">
+                            @if (!string.IsNullOrWhiteSpace(w.Description)) { <p class="mb-2 content-pre">@w.Description</p> }
+                            @if (!string.IsNullOrWhiteSpace(w.Content))
+                            {
+                                <details>
+                                    <summary>@T.Get("About", l)</summary>
+                                    <p class="content-pre small mt-2 mb-0">@w.Content</p>
+                                </details>
+                            }
+                        </div>
+                    }
+                    <hr class="mt-5 mb-0" />
                 </div>
             }
 
-            <div class="card-body p-6">
+            <div class="p-5 p-md-6">
                 @switch (Model.State)
                 {
                     case "success":
-                        <div class="text-center py-6">
-                            <span class="stat-icon bg-label-success mb-4" style="width:64px;height:64px;font-size:2rem"><i class="icon-base ri ri-checkbox-circle-line"></i></span>
+                        <div class="pub-state">
+                            <span class="pub-state-icon bg-label-success"><i class="icon-base ri ri-check-line"></i></span>
                             <h4 class="mb-2">@T.Get("SuccessTitle", l)</h4>
-                            <p class="mb-0">@T.Get("SuccessBody", l)</p>
+                            <p class="text-body-secondary mb-4">@T.Get("SuccessBody", l)</p>
+                            @if (w != null)
+                            {
+                                <div class="pub-chips justify-content-center">
+                                    <span class="pub-chip" dir="auto"><i class="icon-base ri ri-bookmark-line"></i>@w.Name</span>
+                                    <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("d MMMM yyyy", culture) · <span dir="ltr">@w.StartDateTime.ToString("HH:mm")</span></span>
+                                </div>
+                            }
                         </div>
                         break;
                     case "closed":
-                        <div class="text-center py-6">
-                            <span class="stat-icon bg-label-secondary mb-4" style="width:64px;height:64px;font-size:2rem"><i class="icon-base ri ri-lock-line"></i></span>
+                        <div class="pub-state">
+                            <span class="pub-state-icon bg-label-secondary"><i class="icon-base ri ri-lock-line"></i></span>
                             <h4 class="mb-2">@T.Get("ClosedTitle", l)</h4>
-                            <p class="mb-0">@T.Get("ClosedBody", l)</p>
+                            <p class="text-body-secondary mb-0">@T.Get("ClosedBody", l)</p>
                         </div>
                         break;
                     case "full":
-                        <div class="text-center py-6">
-                            <span class="stat-icon bg-label-warning mb-4" style="width:64px;height:64px;font-size:2rem"><i class="icon-base ri ri-group-line"></i></span>
+                        <div class="pub-state">
+                            <span class="pub-state-icon bg-label-warning"><i class="icon-base ri ri-group-line"></i></span>
                             <h4 class="mb-2">@T.Get("FullTitle", l)</h4>
-                            <p class="mb-0">@T.Get("FullBody", l)</p>
+                            <p class="text-body-secondary mb-0">@T.Get("FullBody", l)</p>
                         </div>
                         break;
                     case "notfound":
-                        <div class="text-center py-6">
-                            <span class="stat-icon bg-label-danger mb-4" style="width:64px;height:64px;font-size:2rem"><i class="icon-base ri ri-link-unlink"></i></span>
+                        <div class="pub-state">
+                            <span class="pub-state-icon bg-label-danger"><i class="icon-base ri ri-link-unlink"></i></span>
                             <h4 class="mb-2">@T.Get("NotFoundTitle", l)</h4>
-                            <p class="mb-0">@T.Get("NotFoundBody", l)</p>
+                            <p class="text-body-secondary mb-0">@T.Get("NotFoundBody", l)</p>
                         </div>
                         break;
                     default:
-                        if (!string.IsNullOrWhiteSpace(w?.Description) || !string.IsNullOrWhiteSpace(w?.Content))
-                        {
-                            <h6 class="mb-2">@T.Get("About", l)</h6>
-                            <div dir="auto" class="mb-6">
-                                @if (!string.IsNullOrWhiteSpace(w?.Description)) { <p class="content-pre">@w!.Description</p> }
-                                @if (!string.IsNullOrWhiteSpace(w?.Content)) { <p class="content-pre small text-body-secondary mb-0">@w!.Content</p> }
-                            </div>
-                            <hr class="mb-6" />
-                        }
-                        <p class="mb-5">@T.Get("Subtitle", l)</p>
+                        <h5 class="mb-1">@T.Get("FormTitle", l)</h5>
+                        <p class="text-body-secondary mb-5 small">@T.Get("Subtitle", l)</p>
                         if (Model.Error != null)
                         {
-                            <div class="alert alert-danger">@Model.Error</div>
+                            <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
+                                <i class="icon-base ri ri-information-line"></i><span>@Model.Error</span>
+                            </div>
                         }
                         <form method="post" action="@actionUrl" novalidate>
                             @Html.AntiForgeryToken()
                             <div class="mb-4">
-                                <label class="form-label" for="FullName">@T.Get("FullName", l) <span class="text-danger">*</span></label>
-                                <input id="FullName" name="FullName" value="@Model.Form.FullName" class="form-control @Invalid("FullName")" maxlength="150" autocomplete="name" dir="auto" required />
+                                <label class="form-label" for="FullName">@T.Get("FullName", l)</label>
+                                <input id="FullName" name="FullName" value="@Model.Form.FullName" class="form-control @Invalid("FullName")" maxlength="150" autocomplete="name" dir="auto" placeholder="@T.Get("FullNameHint", l)" required />
                                 <div class="invalid-feedback">@Err("FullName")</div>
                             </div>
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <label class="form-label" for="Email">@T.Get("Email", l) <span class="text-danger">*</span></label>
-                                    <input id="Email" name="Email" type="email" value="@Model.Form.Email" class="form-control @Invalid("Email")" maxlength="256" autocomplete="email" dir="ltr" required />
-                                    <div class="invalid-feedback">@Err("Email")</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" for="Phone">@T.Get("Phone", l) <span class="text-danger">*</span></label>
-                                    <input id="Phone" name="Phone" type="tel" value="@Model.Form.Phone" class="form-control @Invalid("Phone")" maxlength="20" autocomplete="tel" dir="ltr" required />
-                                    <div class="invalid-feedback">@Err("Phone")</div>
-                                </div>
+                            <div class="mb-4">
+                                <label class="form-label" for="Email">@T.Get("Email", l)</label>
+                                <input id="Email" name="Email" type="email" value="@Model.Form.Email" class="form-control @Invalid("Email")" maxlength="256" autocomplete="email" dir="ltr" placeholder="name@example.com" required />
+                                <div class="invalid-feedback">@Err("Email")</div>
                             </div>
                             <div class="mb-4">
-                                <label class="form-label" for="Organization">@T.Get("Organization", l)</label>
+                                <label class="form-label" for="Phone">@T.Get("Phone", l)</label>
+                                <input id="Phone" name="Phone" type="tel" value="@Model.Form.Phone" class="form-control @Invalid("Phone")" maxlength="20" autocomplete="tel" dir="ltr" placeholder="@(w?.Country == "EG" ? "+20 10 0000 0000" : "+249 91 000 0000")" required />
+                                <div class="invalid-feedback">@Err("Phone")</div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label" for="Organization">@T.Get("Organization", l) <span class="text-body-secondary fw-normal small">@T.Get("Optional", l)</span></label>
                                 <input id="Organization" name="Organization" value="@Model.Form.Organization" class="form-control" maxlength="150" dir="auto" />
                             </div>
                             <div class="mb-6">
-                                <label class="form-label" for="Notes">@T.Get("Notes", l)</label>
-                                <textarea id="Notes" name="Notes" class="form-control" rows="3" maxlength="500" dir="auto">@Model.Form.Notes</textarea>
+                                <label class="form-label" for="Notes">@T.Get("Notes", l) <span class="text-body-secondary fw-normal small">@T.Get("Optional", l)</span></label>
+                                <textarea id="Notes" name="Notes" class="form-control" rows="2" maxlength="500" dir="auto">@Model.Form.Notes</textarea>
                             </div>
-                            <button type="submit" class="btn btn-primary btn-lg w-100">@T.Get("Submit", l)</button>
+                            <button type="submit" class="btn btn-primary btn-lg w-100" data-loading-text="@T.Get("Sending", l)">@T.Get("Submit", l)</button>
+                            <p class="text-center small text-body-secondary mt-3 mb-0"><i class="icon-base ri ri-shield-check-line me-1"></i>@T.Get("Privacy", l)</p>
                         </form>
                         break;
                 }
             </div>
         </div>
-        <p class="text-center small text-body-secondary mt-4 mb-0">&copy; @DateTime.Now.Year @AppOptions.Value.OrganizationName</p>
+        <p class="text-center pub-footer mt-5 mb-0">&copy; @DateTime.Now.Year @AppOptions.Value.OrganizationName</p>
     </div>
 </div>
+<script src="~/assets/vendor/libs/jquery/jquery.js"></script>
+<script src="~/assets/vendor/js/bootstrap.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>

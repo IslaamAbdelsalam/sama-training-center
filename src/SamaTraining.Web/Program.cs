@@ -63,7 +63,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<WorkshopService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddSingleton<PublicText>();
+
+// Write Arabic text as-is in the HTML instead of escaping every character.
+builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o =>
+    o.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(System.Text.Unicode.UnicodeRanges.All));
 
 builder.Services.AddControllersWithViews(options =>
 {

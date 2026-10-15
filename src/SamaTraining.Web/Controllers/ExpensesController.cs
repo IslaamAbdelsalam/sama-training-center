@@ -8,7 +8,7 @@ using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Controllers;
 
-/// <summary>US-14..US-16: workshop expenses.</summary>
+/// <summary>US-14..US-16: workshop expenses, always in the workshop's currency.</summary>
 [HasPermission(Permissions.ExpensesManage)]
 public class ExpensesController : AppController
 {
@@ -22,11 +22,11 @@ public class ExpensesController : AppController
         if (w == null) return NotFound();
         if (!WorkshopService.CanAddExpense(w))
         {
-            Error("Expenses can only be added after the workshop has started (status Ongoing or Completed).");
+            Info("Start the workshop first", "Expenses can be added once the workshop status is Ongoing.");
             return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
         }
 
-        var model = new ExpenseFormModel { WorkshopId = w.Id, WorkshopName = w.Name, ExpenseDate = DateTime.Today };
+        var model = new ExpenseFormModel { WorkshopId = w.Id, WorkshopName = w.Name, CurrencyCode = w.CurrencyCode, ExpenseDate = DateTime.Today };
         await LoadCategoriesAsync(model, null);
         return View("Form", model);
     }
@@ -41,6 +41,7 @@ public class ExpensesController : AppController
             Id = e.Id,
             WorkshopId = e.WorkshopId,
             WorkshopName = e.Workshop?.Name,
+            CurrencyCode = e.Workshop?.CurrencyCode,
             ExpenseCategoryId = e.ExpenseCategoryId,
             Amount = e.Amount,
             ExpenseDate = e.ExpenseDate,
@@ -50,16 +51,18 @@ public class ExpensesController : AppController
         return View("Form", model);
     }
 
+    /// <param name="addAnother">When true, returns to a blank form after saving ("Save &amp; add another").</param>
     [HttpPost]
-    public async Task<IActionResult> Save(ExpenseFormModel model)
+    public async Task<IActionResult> Save(ExpenseFormModel model, bool addAnother = false)
     {
         var w = await _db.Workshops.FindAsync(model.WorkshopId);
         if (w == null) return NotFound();
         model.WorkshopName = w.Name;
+        model.CurrencyCode = w.CurrencyCode;
 
         if (!WorkshopService.CanAddExpense(w))
         {
-            Error("Expenses can only be recorded after the workshop has started.");
+            Info("Start the workshop first", "Expenses can be recorded once the workshop status is Ongoing.");
             return RedirectToAction("Details", "Workshops", new { id = w.Id, tab = "expenses" });
         }
 
@@ -81,7 +84,8 @@ public class ExpensesController : AppController
         }
 
         WorkshopExpense? e;
-        if (model.Id == 0)
+        var isNew = model.Id == 0;
+        if (isNew)
         {
             e = new WorkshopExpense { WorkshopId = w.Id, CreatedBy = CurrentUserName, CreatedAt = DateTime.UtcNow };
             _db.WorkshopExpenses.Add(e);
@@ -100,20 +104,29 @@ public class ExpensesController : AppController
         e.Description = model.Description;
         await _db.SaveChangesAsync();
 
-        Success("Expense saved.");
+        var amount = MoneyFormat.Format(e.Amount, w.CurrencyCode);
+        Success(isNew ? "Expense added" : "Expense updated", $"{amount} recorded for \"{w.Name}\".");
+        Highlight(e.Id);
+
+        if (isNew && addAnother)
+        {
+            return RedirectToAction(nameof(Create), new { workshopId = w.Id });
+        }
+
         return RedirectToAction("Details", "Workshops", new { id = w.Id, tab = "expenses" });
     }
 
     [HttpPost]
     public async Task<IActionResult> Delete(int id)
     {
-        var e = await _db.WorkshopExpenses.FindAsync(id);
+        var e = await _db.WorkshopExpenses.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
 
         var workshopId = e.WorkshopId;
+        var amount = MoneyFormat.Format(e.Amount, e.Workshop?.CurrencyCode);
         _db.WorkshopExpenses.Remove(e);
         await _db.SaveChangesAsync();
-        Success("Expense deleted.");
+        Success("Expense deleted", $"{amount} was removed from the workshop total.");
         return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
     }
 

@@ -45,7 +45,9 @@ public class DashboardViewModel
     public int Completed { get; set; }
     public int OpenRegistrations { get; set; }
     public int TotalRegistrations { get; set; }
-    public decimal TotalExpenses { get; set; }
+
+    /// <summary>Expense totals per currency, e.g. SDG → 1,200,000; EGP → 35,000.</summary>
+    public Dictionary<string, decimal> ExpensesByCurrency { get; set; } = new();
     public bool ShowExpenses { get; set; }
     public List<Workshop> Upcoming { get; set; } = new();
 }
@@ -90,6 +92,7 @@ public class WorkshopFilterModel
     public string? Search { get; set; }
     public WorkshopStatus? Status { get; set; }
     public WorkshopType? Type { get; set; }
+    public string? Country { get; set; }
 
     [DataType(DataType.Date)]
     public DateTime? From { get; set; }
@@ -105,6 +108,7 @@ public class WorkshopListItem
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
     public WorkshopType Type { get; set; }
+    public string Country { get; set; } = string.Empty;
     public string? HallName { get; set; }
     public WorkshopStatus Status { get; set; }
     public bool RegistrationOpen { get; set; }
@@ -135,6 +139,12 @@ public class WorkshopFormModel : IValidatableObject
 
     [Required, Display(Name = "Workshop type")]
     public WorkshopType? Type { get; set; }
+
+    [Required(ErrorMessage = "Choose the country where the workshop runs."), Display(Name = "Country")]
+    public string? Country { get; set; }
+
+    /// <summary>True when expenses exist, so the country (and currency) can no longer change.</summary>
+    public bool CountryLocked { get; set; }
 
     [Display(Name = "Hall / location")]
     public int? HallId { get; set; }
@@ -190,6 +200,7 @@ public class ExpenseFormModel
     public int Id { get; set; }
     public int WorkshopId { get; set; }
     public string? WorkshopName { get; set; }
+    public string? CurrencyCode { get; set; }
 
     [Required, Display(Name = "Expense type")]
     public int? ExpenseCategoryId { get; set; }

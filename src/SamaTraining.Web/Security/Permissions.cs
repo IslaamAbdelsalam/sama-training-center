@@ -18,6 +18,7 @@ public static class Permissions
     public const string RegistrationsView = "Registrations.View";
     public const string ExpensesView = "Expenses.View";
     public const string ExpensesManage = "Expenses.Manage";
+    public const string ReportsView = "Reports.View";
     public const string UsersManage = "Users.Manage";
 
     public record PermissionInfo(string Key, string Group, string Description);
@@ -34,6 +35,7 @@ public static class Permissions
         new(RegistrationsView, "Registrations", "View registered students"),
         new(ExpensesView, "Expenses", "View workshop expenses"),
         new(ExpensesManage, "Expenses", "Add, edit and delete expenses"),
+        new(ReportsView, "Reports", "View reports and export them"),
         new(UsersManage, "Administration", "Manage users, roles and permissions"),
     };
 
@@ -54,11 +56,11 @@ public static class Roles
         {
             Permissions.DashboardView, Permissions.WorkshopsView, Permissions.WorkshopsManage,
             Permissions.WorkshopsChangeStatus, Permissions.RegistrationsManage, Permissions.RegistrationsView,
-            Permissions.ExpensesView
+            Permissions.ExpensesView, Permissions.ReportsView
         },
         [Finance] = new[]
         {
-            Permissions.DashboardView, Permissions.WorkshopsView, Permissions.ExpensesView, Permissions.ExpensesManage
+            Permissions.DashboardView, Permissions.WorkshopsView, Permissions.ExpensesView, Permissions.ExpensesManage, Permissions.ReportsView
         },
     };
 }

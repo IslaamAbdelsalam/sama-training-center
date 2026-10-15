@@ -17,7 +17,7 @@
 <div class="card mb-6">
     <div class="card-body">
         <form asp-action="Index" method="get" class="row g-4 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label class="form-label" for="Search">Name</label>
                 <input type="text" id="Search" name="Search" value="@f.Search" class="form-control" placeholder="Search by name" />
             </div>
@@ -27,7 +27,7 @@
                     <option value="">All</option>
                     @foreach (var s in Enum.GetValues<WorkshopStatus>())
                     {
-                        <option value="@s" selected="@(f.Status == s)">@s</option>
+                        <!option value="@s" selected="@(f.Status == s)">@s</!option>
                     }
                 </select>
             </div>
@@ -35,17 +35,27 @@
                 <label class="form-label" for="Type">Type</label>
                 <select id="Type" name="Type" class="form-select">
                     <option value="">All</option>
-                    <option value="@WorkshopType.Online" selected="@(f.Type == WorkshopType.Online)">Online</option>
-                    <option value="@WorkshopType.OnSite" selected="@(f.Type == WorkshopType.OnSite)">On-site</option>
+                    <!option value="@WorkshopType.Online" selected="@(f.Type == WorkshopType.Online)">Online</!option>
+                    <!option value="@WorkshopType.OnSite" selected="@(f.Type == WorkshopType.OnSite)">On-site</!option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="Country">Country</label>
+                <select id="Country" name="Country" class="form-select">
+                    <option value="">All</option>
+                    @foreach (var c in AppOptions.Value.GetCountries())
+                    {
+                        <!option value="@c.Code" selected="@(f.Country == c.Code)">@c.Name</!option>
+                    }
                 </select>
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label" for="From">From</label>
-                <input type="date" id="From" name="From" value="@f.From?.ToString("yyyy-MM-dd")" class="form-control" />
+                <input type="date" id="From" name="From" value="@(f.From?.ToString("yyyy-MM-dd"))" class="form-control" />
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label" for="To">To</label>
-                <input type="date" id="To" name="To" value="@f.To?.ToString("yyyy-MM-dd")" class="form-control" />
+                <input type="date" id="To" name="To" value="@(f.To?.ToString("yyyy-MM-dd"))" class="form-control" />
             </div>
             <div class="col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-filter-3-line me-1"></i>Filter</button>
@@ -63,6 +73,7 @@
                 <th>Workshop</th>
                 <th>Date &amp; time</th>
                 <th>Type / place</th>
+                <th>Country</th>
                 <th>Status</th>
                 <th>Registration</th>
                 <th class="text-end">Students</th>
@@ -71,7 +82,7 @@
             <tbody class="table-border-bottom-0">
             @if (Model.Items.Count == 0)
             {
-                <tr><td colspan="6" class="text-center text-body-secondary py-6">No workshops match these filters.</td></tr>
+                <tr><td colspan="7" class="text-center text-body-secondary py-6">No workshops match these filters.</td></tr>
             }
             @foreach (var w in Model.Items)
             {
@@ -88,6 +99,7 @@
                             <span><i class="icon-base ri ri-map-pin-line me-1"></i>@(w.HallName ?? "On-site")</span>
                         }
                     </td>
+                    <td>@AppOptions.Value.CountryName(w.Country)</td>
                     <td><partial name="_StatusBadge" model="w.Status" /></td>
                     <td>
                         @if (w.RegistrationOpen) { <span class="badge bg-label-primary">Open</span> }

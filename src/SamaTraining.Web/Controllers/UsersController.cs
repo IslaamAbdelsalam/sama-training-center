@@ -147,7 +147,9 @@ public class UsersController : AppController
         if (toAdd.Count > 0) await _users.AddToRolesAsync(user, toAdd);
         if (toRemove.Count > 0 || toAdd.Count > 0) await _users.UpdateSecurityStampAsync(user);
 
-        Success($"User \"{user.UserName}\" saved.");
+        Success(isNew ? "User added" : "User updated",
+            isNew ? $"{user.FullName} can sign in as \"{user.UserName}\" and will set a new password at first login." : $"{user.FullName}'s account is saved.");
+        Highlight(user.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -179,7 +181,8 @@ public class UsersController : AppController
         await _users.SetLockoutEndDateAsync(u, null);
         await _users.ResetAccessFailedCountAsync(u);
 
-        Success($"Temporary password set for \"{u.UserName}\". Share it securely; they must change it at next login.");
+        Success("Password reset", $"Share the temporary password with {u.UserName} securely. They must change it at next login.");
+        Highlight(u.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -190,7 +193,8 @@ public class UsersController : AppController
         if (u == null) return NotFound();
         await _users.SetLockoutEndDateAsync(u, null);
         await _users.ResetAccessFailedCountAsync(u);
-        Success($"\"{u.UserName}\" has been unlocked.");
+        Success("Account unlocked", $"{u.UserName} can sign in again.");
+        Highlight(u.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -307,7 +311,7 @@ public class RolesController : AppController
             await _users.UpdateSecurityStampAsync(u);
         }
 
-        Success($"Role \"{role.Name}\" saved.");
+        Success(string.IsNullOrEmpty(model.Id) ? "Role added" : "Role updated", $"Permissions for \"{role.Name}\" apply to its users within a minute.");
         return RedirectToAction(nameof(Index));
     }
 
@@ -319,18 +323,18 @@ public class RolesController : AppController
 
         if (r.Name == Roles.Administrator)
         {
-            Error("The Administrator role cannot be deleted.");
+            Error("Role can't be deleted", "The Administrator role is required by the system.");
             return RedirectToAction(nameof(Index));
         }
 
         if ((await _users.GetUsersInRoleAsync(r.Name!)).Count > 0)
         {
-            Error($"\"{r.Name}\" still has users. Move them to another role first.");
+            Error("Role can't be deleted", $"\"{r.Name}\" still has users. Move them to another role first.");
             return RedirectToAction(nameof(Index));
         }
 
         await _roles.DeleteAsync(r);
-        Success($"Role \"{r.Name}\" deleted.");
+        Success("Role deleted", $"\"{r.Name}\" was removed.");
         return RedirectToAction(nameof(Index));
     }
 }

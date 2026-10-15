@@ -124,7 +124,7 @@ public class AccountController : AppController
         await _userManager.UpdateAsync(user);
         await _signInManager.RefreshSignInAsync(user);
 
-        Success("Your password has been changed.");
+        Success("Password changed", "Use your new password next time you sign in.");
         return RedirectToAction("Index", "Dashboard");
     }
 

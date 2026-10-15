@@ -48,9 +48,15 @@ public class DashboardController : AppController
 
         if (model.ShowExpenses)
         {
+            // Totals are kept per currency (SDG, EGP, ...) because they can't be added together.
             // Summed in memory so it works on every database provider.
-            var amounts = await _db.WorkshopExpenses.Select(e => e.Amount).ToListAsync();
-            model.TotalExpenses = amounts.Sum();
+            var rows = await _db.WorkshopExpenses
+                .Select(e => new { e.Workshop!.CurrencyCode, e.Amount })
+                .ToListAsync();
+            model.ExpensesByCurrency = rows
+                .GroupBy(r => r.CurrencyCode)
+                .OrderBy(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.Sum(r => r.Amount));
         }
 
         return View(model);
