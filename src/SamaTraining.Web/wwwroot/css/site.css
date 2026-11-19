@@ -213,3 +213,13 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
   border-radius: 0.6rem 0 0 0.6rem; letter-spacing: 0.05em; user-select: none;
 }
 .public-card .phone-group .form-control { border-radius: 0 0.6rem 0.6rem 0; letter-spacing: 0.04em; }
+
+/* Dashboard: one block per currency */
+.currency-code {
+  min-width: 52px; height: 40px; padding: 0 0.6rem; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(var(--bs-primary-rgb), 0.12); color: var(--bs-primary);
+  font-weight: 700; letter-spacing: 0.06em;
+}
+.currency-total { font-size: 1.75rem; font-weight: 600; color: var(--bs-heading-color); line-height: 1.2; }
+.currency-total span { font-size: 1rem; font-weight: 500; color: var(--bs-secondary-color); }

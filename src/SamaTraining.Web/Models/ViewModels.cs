@@ -46,10 +46,33 @@ public class DashboardViewModel
     public int OpenRegistrations { get; set; }
     public int TotalRegistrations { get; set; }
 
-    /// <summary>Expense totals per currency, e.g. SDG → 1,200,000; EGP → 35,000.</summary>
-    public Dictionary<string, decimal> ExpensesByCurrency { get; set; } = new();
     public bool ShowExpenses { get; set; }
+
+    /// <summary>One block per currency (SDG, EGP). Amounts are never converted or added across currencies.</summary>
+    public List<DashboardCurrencySummary> Currencies { get; set; } = new();
+
     public List<Workshop> Upcoming { get; set; } = new();
+
+    /// <summary>Expense total per upcoming workshop, in that workshop's own currency.</summary>
+    public Dictionary<int, decimal> UpcomingExpenses { get; set; } = new();
+}
+
+public class DashboardCurrencySummary
+{
+    public string Currency { get; set; } = string.Empty;
+    public string CountryName { get; set; } = string.Empty;
+    public int Workshops { get; set; }
+    public int Pending { get; set; }
+    public int Ongoing { get; set; }
+    public int Completed { get; set; }
+    public int Students { get; set; }
+    public decimal TotalExpenses { get; set; }
+    public decimal ExpensesThisMonth { get; set; }
+    public string? TopCategory { get; set; }
+    public decimal TopCategoryAmount { get; set; }
+
+    /// <summary>Total expenses ÷ students, in this currency.</summary>
+    public decimal? CostPerStudent => Students > 0 ? Math.Round(TotalExpenses / Students, 2) : null;
 }
 
 // ---------- Settings ----------

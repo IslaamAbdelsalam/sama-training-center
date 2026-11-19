@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Dashboard";
     var name = User.FindFirst("full_name")?.Value ?? User.Identity?.Name;
+    var settings = AppOptions.Value;
 }
 
 <div class="row g-6">
@@ -22,6 +23,7 @@
         </div>
     </div>
 
+    @* Counts only (no money) — safe to show across both countries. *@
     @{
         var stats = new List<(string Label, string Value, string Icon, string Color, WorkshopStatus? Filter)>
         {
@@ -30,23 +32,10 @@
             ("Completed", Model.Completed.ToString(), "ri-checkbox-circle-line", "success", WorkshopStatus.Completed),
             ("Registrations", Model.TotalRegistrations.ToString("N0"), "ri-user-add-line", "primary", null),
         };
-        if (Model.ShowExpenses)
-        {
-            if (Model.ExpensesByCurrency.Count == 0)
-            {
-                stats.Add(("Total expenses", "0.00", "ri-money-dollar-circle-line", "danger", null));
-            }
-            foreach (var (cur, total) in Model.ExpensesByCurrency)
-            {
-                stats.Add(($"Expenses ({cur})", MoneyFormat.Format(total, cur), "ri-money-dollar-circle-line", "danger", null));
-            }
-        }
-        var col = stats.Count > 4 ? "col-sm-6 col-lg" : "col-sm-6 col-lg-3";
     }
-
     @foreach (var s in stats)
     {
-        <div class="@col">
+        <div class="col-sm-6 col-lg-3">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -58,6 +47,68 @@
                     </div>
                     <h4 class="mb-0">@s.Value</h4>
                     <p class="mb-0 text-body-secondary">@s.Label</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Grouped by currency: each block adds up only its own currency's workshops. No conversion. -->
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-1">
+            <h5 class="mb-0">By currency</h5>
+            <small class="text-body-secondary">Each currency is totalled separately, as entered. Amounts are not converted.</small>
+        </div>
+    </div>
+    @foreach (var c in Model.Currencies)
+    {
+        <div class="col-lg-6">
+            <div class="card h-100 currency-card">
+                <div class="card-header d-flex justify-content-between align-items-center pb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="currency-code">@c.Currency</span>
+                        <div>
+                            <h5 class="mb-0">@c.CountryName</h5>
+                            <small class="text-body-secondary">@c.Workshops workshop(s) · @c.Students.ToString("N0") student(s)</small>
+                        </div>
+                    </div>
+                    @{ var country = settings.GetCountries().FirstOrDefault(x => x.Currency == c.Currency); }
+                    @if (country != null)
+                    {
+                        <a asp-controller="Workshops" asp-action="Index" asp-route-Country="@country.Code" class="btn btn-sm btn-outline-primary">Workshops</a>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (Model.ShowExpenses)
+                    {
+                        <div class="mb-4">
+                            <div class="small text-body-secondary">Total expenses</div>
+                            <div class="currency-total">@c.TotalExpenses.ToString("N2") <span>@c.Currency</span></div>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-4"><div class="report-mini"><strong>@c.ExpensesThisMonth.ToString("N0")</strong><span>This month</span></div></div>
+                            <div class="col-4"><div class="report-mini"><strong>@(c.CostPerStudent.HasValue ? c.CostPerStudent.Value.ToString("N0") : "—")</strong><span>Cost / student</span></div></div>
+                            <div class="col-4"><div class="report-mini"><strong>@c.Completed</strong><span>Completed</span></div></div>
+                        </div>
+                        @if (c.TopCategory != null)
+                        {
+                            <div class="d-flex justify-content-between small border-top pt-3">
+                                <span class="text-body-secondary">Biggest expense type</span>
+                                <span class="fw-medium">@c.TopCategory · @MoneyFormat.Format(c.TopCategoryAmount, c.Currency)</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="small text-body-secondary border-top pt-3 mb-0">No expenses recorded in @c.Currency yet.</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-4"><div class="report-mini"><strong>@c.Pending</strong><span>Pending</span></div></div>
+                            <div class="col-4"><div class="report-mini"><strong>@c.Ongoing</strong><span>Ongoing</span></div></div>
+                            <div class="col-4"><div class="report-mini"><strong>@c.Completed</strong><span>Completed</span></div></div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -78,22 +129,26 @@
                     <tr>
                         <th>Workshop</th>
                         <th>Date</th>
-                        <th>Type</th>
+                        <th>Country</th>
                         <th>Status</th>
                         <th>Registration</th>
+                        @if (Model.ShowExpenses) { <th class="text-end">Expenses</th> }
                     </tr>
                     </thead>
                     <tbody class="table-border-bottom-0">
                     @if (Model.Upcoming.Count == 0)
                     {
-                        <tr><td colspan="5" class="text-center text-body-secondary py-6">No upcoming workshops yet.</td></tr>
+                        <tr><td colspan="6" class="text-center text-body-secondary py-6">No upcoming workshops yet.</td></tr>
                     }
                     @foreach (var w in Model.Upcoming)
                     {
                         <tr>
-                            <td><a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a></td>
+                            <td>
+                                <a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a>
+                                <small class="d-block text-body-secondary">@(w.Type == WorkshopType.Online ? "Online" : w.Hall?.Name ?? "On-site")</small>
+                            </td>
                             <td>@w.StartDateTime.ToString("dd MMM yyyy") <small class="text-body-secondary d-block">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")</small></td>
-                            <td>@(w.Type == WorkshopType.Online ? "Online" : w.Hall?.Name ?? "On-site")</td>
+                            <td>@settings.CountryName(w.Country) <span class="badge bg-label-secondary ms-1">@w.CurrencyCode</span></td>
                             <td><partial name="_StatusBadge" model="w.Status" /></td>
                             <td>
                                 @if (w.RegistrationOpen)
@@ -105,6 +160,10 @@
                                     <span class="badge bg-label-secondary">Closed</span>
                                 }
                             </td>
+                            @if (Model.ShowExpenses)
+                            {
+                                <td class="text-end text-nowrap">@MoneyFormat.Format(Model.UpcomingExpenses.GetValueOrDefault(w.Id), w.CurrencyCode)</td>
+                            }
                         </tr>
                     }
                     </tbody>

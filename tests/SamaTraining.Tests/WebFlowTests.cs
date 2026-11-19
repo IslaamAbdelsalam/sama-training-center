@@ -464,4 +464,17 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
         Assert.Contains("00249 912345678", details);
     }
+
+    [Fact] // Dashboard groups money by SDG and EGP separately; no conversion, no mixed total
+    public async Task Dashboard_GroupsAmountsByCurrency()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var html = await client.GetStringAsync("/");
+        Assert.Contains("By currency", html);
+        Assert.Contains(">SDG</span>", html);
+        Assert.Contains(">EGP</span>", html);
+        Assert.Contains("Sudan", html);
+        Assert.Contains("Egypt", html);
+        Assert.DoesNotContain("USD", html);
+    }
 }
