@@ -15,6 +15,12 @@ public class AppSettings
     /// </summary>
     public List<CountryOption> Countries { get; set; } = new();
 
+    /// <summary>
+    /// Calling codes accepted on the registration page, with the number of digits after each code.
+    /// Leave empty to use the built-in list (Sudan, Egypt, Gulf countries and neighbours).
+    /// </summary>
+    public List<PhoneCountry> PhoneCountries { get; set; } = new();
+
     private static readonly List<CountryOption> DefaultCountries = new()
     {
         new CountryOption { Code = "SD", Name = "Sudan", NameAr = "السودان", Currency = "SDG" },

@@ -42,8 +42,13 @@ public class WorkshopServiceTests : IDisposable
         return w;
     }
 
-    private static Registration Student(string email) =>
-        new() { FullName = "Student", Email = email, Phone = "+249 912 345 678" };
+    /// <summary>A student whose phone is derived from the email, so different emails get different phones.</summary>
+    private static Registration Student(string email, string? phone = null)
+    {
+        var key = email.Trim().ToLowerInvariant();
+        var n = (uint)key.Aggregate(17, (h, c) => unchecked(h * 31 + c)) % 100_000_000;
+        return new() { FullName = "Student", Email = email, Phone = phone ?? $"2499{n:D8}" };
+    }
 
     [Fact] // US-03
     public async Task NewWorkshop_IsPending_WithRegistrationClosed()
@@ -168,5 +173,22 @@ public class WorkshopServiceTests : IDisposable
 
         Assert.NotEqual(oldToken, w.RegistrationToken);
         Assert.Equal(WorkshopService.RegisterOutcome.NotFound, await _service.RegisterAsync(oldToken, Student("a@x.com")));
+    }
+
+    [Fact] // Same phone number can't register twice for the same workshop, even with another email
+    public async Task DuplicatePhone_IsBlocked()
+    {
+        var w = await AddWorkshopAsync();
+        await _service.OpenRegistrationAsync(w.Id, "u");
+        await _db.Entry(w).ReloadAsync();
+
+        Assert.Equal(WorkshopService.RegisterOutcome.Success, await _service.RegisterAsync(w.RegistrationToken!, Student("a@x.com", "00249 912 345 678")));
+        Assert.Equal(WorkshopService.RegisterOutcome.DuplicatePhone, await _service.RegisterAsync(w.RegistrationToken!, Student("b@x.com", "+249912345678")));
+
+        // Same phone is fine for a different workshop
+        var w2 = await AddWorkshopAsync();
+        await _service.OpenRegistrationAsync(w2.Id, "u");
+        await _db.Entry(w2).ReloadAsync();
+        Assert.Equal(WorkshopService.RegisterOutcome.Success, await _service.RegisterAsync(w2.RegistrationToken!, Student("b@x.com", "249912345678")));
     }
 }

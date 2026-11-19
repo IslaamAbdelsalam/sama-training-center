@@ -1,4 +1,5 @@
 @model WorkshopDetailsViewModel
+@inject PhoneNumberService Phones
 @{
     var w = Model.Workshop;
     ViewData["Title"] = w.Name;
@@ -38,6 +39,10 @@
                     }
                 </div>
                 <h4 class="mb-1">@w.Name</h4>
+                @if (!string.IsNullOrWhiteSpace(w.NameAr))
+                {
+                    <div class="fw-medium text-body-secondary mb-1" dir="rtl" style="text-align:start">@w.NameAr</div>
+                }
                 @if (!string.IsNullOrWhiteSpace(w.Description))
                 {
                     <p class="mb-0 text-body-secondary">@w.Description</p>
@@ -182,7 +187,13 @@
                                                 <div class="fw-medium text-heading">@r.FullName @if (r.Language == "ar") { <span class="badge bg-label-secondary ms-1">AR</span> }</div>
                                                 <small><a href="mailto:@r.Email">@r.Email</a></small>
                                             </td>
-                                            <td class="text-nowrap" dir="ltr">@r.Phone</td>
+                                            <td class="text-nowrap">
+                                                <span dir="ltr">@Phones.Format(r.Phone)</span>
+                                                @if (Model.EarlierWorkshopsByPhone.TryGetValue(r.Phone, out var earlier))
+                                                {
+                                                    <span class="badge bg-label-info d-block mt-1" title="Same phone number registered for @earlier other workshop(s)"><i class="icon-base ri ri-repeat-line me-1"></i>Returning · @earlier</span>
+                                                }
+                                            </td>
                                             <td>@r.Organization</td>
                                             <td class="text-nowrap small">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
                                         </tr>

@@ -50,6 +50,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             // US-13: one registration per email per workshop.
             e.HasIndex(x => new { x.WorkshopId, x.Email }).IsUnique();
+            // One registration per phone number per workshop.
+            e.HasIndex(x => new { x.WorkshopId, x.Phone }).IsUnique();
+            // Fast lookup of a student's earlier workshops by phone.
+            e.HasIndex(x => x.Phone);
             e.HasOne(x => x.Workshop).WithMany(w => w.Registrations).HasForeignKey(x => x.WorkshopId).OnDelete(DeleteBehavior.Restrict);
         });
 

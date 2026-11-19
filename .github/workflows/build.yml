@@ -27,13 +27,18 @@ jobs:
       - name: Test
         run: dotnet test SamaTraining.sln --no-build -c Release --logger "console;verbosity=normal" --logger "GitHubActions;summary-include-passed=false"
 
-      # Creates the first EF Core migration if the project doesn't have one yet.
-      # Download the "migrations" artifact from the run and commit it under Data/Migrations.
-      - name: Generate initial migration (only if missing)
-        if: hashFiles('src/SamaTraining.Web/Data/Migrations/*.cs') == ''
+      # Creates a database migration when the data model changed and no migration was written for it:
+      # "InitialCreate" the first time, then "Schema<run number>". Committed back on main (next step).
+      - name: Generate migration for model changes
         run: |
           dotnet tool install --global dotnet-ef --version 8.0.11
-          dotnet ef migrations add InitialCreate --project src/SamaTraining.Web --output-dir Data/Migrations
+          if [ -z "$(ls src/SamaTraining.Web/Data/Migrations/*.cs 2>/dev/null)" ]; then
+            dotnet ef migrations add InitialCreate --project src/SamaTraining.Web --output-dir Data/Migrations
+          elif ! dotnet ef migrations has-pending-model-changes --project src/SamaTraining.Web; then
+            dotnet ef migrations add "Schema${{ github.run_number }}" --project src/SamaTraining.Web --output-dir Data/Migrations
+          else
+            echo "Database migrations are up to date."
+          fi
         env:
           ConnectionStrings__DefaultConnection: "Server=localhost;Database=Design;Trusted_Connection=True;TrustServerCertificate=True"
 

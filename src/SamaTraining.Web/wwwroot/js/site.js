@@ -127,4 +127,35 @@
     countrySelect.addEventListener('change', syncCurrency);
     syncCurrency();
   }
+  // ---- Registration phone: fixed "00" prefix, digits only, live check of country code + length ----
+  var phone = document.getElementById('Phone');
+  var help = document.getElementById('phone-help');
+  if (phone && phone.dataset.phoneCountries && help) {
+    var countries = [];
+    try { countries = JSON.parse(phone.dataset.phoneCountries); } catch (e) { countries = []; }
+    countries.sort(function (a, b) { return b.c.length - a.c.length; });
+    var fmt = function (t, args) { return t.replace(/\{(\d)\}/g, function (_, i) { return args[i]; }); };
+
+    var update = function () {
+      // Keep digits only; drop a 00 or + the student typed or pasted (the 00 is already shown).
+      var v = phone.value.replace(/\D/g, '').replace(/^0{2,}/, '');
+      if (v !== phone.value) phone.value = v;
+      help.classList.remove('text-success', 'text-warning');
+      if (!v) { help.textContent = help.dataset.helpDefault; return; }
+      var c = countries.find(function (x) { return v.indexOf(x.c) === 0; });
+      if (!c) { help.textContent = help.dataset.helpDefault; return; }
+      var rest = v.length - c.c.length;
+      if (rest === c.d && v.charAt(c.c.length) !== '0') {
+        help.textContent = fmt(help.dataset.okText, [c.n]);
+        help.classList.add('text-success');
+      } else if (rest < c.d) {
+        help.textContent = fmt(help.dataset.needText, [c.n, c.d, c.c, c.d - rest]);
+      } else {
+        help.textContent = fmt(help.dataset.overText, [c.n, c.d, c.c]);
+        help.classList.add('text-warning');
+      }
+    };
+    phone.addEventListener('input', update);
+    update();
+  }
 })();

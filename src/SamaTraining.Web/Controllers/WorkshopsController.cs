@@ -91,6 +91,15 @@ public class WorkshopsController : AppController
         if (User.Can(Permissions.RegistrationsView))
         {
             model.Registrations = await _db.Registrations.Where(r => r.WorkshopId == id).OrderByDescending(r => r.RegisteredAt).ToListAsync();
+
+            // Returning students: same phone number registered for other workshops.
+            var phones = model.Registrations.Select(r => r.Phone).Distinct().ToList();
+            model.EarlierWorkshopsByPhone = (await _db.Registrations
+                    .Where(r => r.WorkshopId != id && phones.Contains(r.Phone))
+                    .Select(r => new { r.Phone, r.WorkshopId })
+                    .ToListAsync())
+                .GroupBy(r => r.Phone)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.WorkshopId).Distinct().Count());
         }
 
         if (User.Can(Permissions.ExpensesView))
@@ -144,8 +153,11 @@ public class WorkshopsController : AppController
             HallId = w.HallId,
             MeetingLink = w.MeetingLink,
             Capacity = w.Capacity,
+            NameAr = w.NameAr,
             Description = w.Description,
-            Content = w.Content
+            DescriptionAr = w.DescriptionAr,
+            Content = w.Content,
+            ContentAr = w.ContentAr
         };
         await LoadHallsAsync(model, w.HallId);
         return View("Form", model);
@@ -217,6 +229,7 @@ public class WorkshopsController : AppController
 
         var date = model.Date!.Value.Date;
         w.Name = model.Name.Trim();
+        w.NameAr = model.NameAr?.Trim();
         w.StartDateTime = date + model.StartTime!.Value;
         w.EndDateTime = date + model.EndTime!.Value;
         w.Type = model.Type!.Value;
@@ -226,7 +239,9 @@ public class WorkshopsController : AppController
         w.MeetingLink = model.Type == WorkshopType.Online ? model.MeetingLink : null;
         w.Capacity = model.Capacity;
         w.Description = model.Description;
+        w.DescriptionAr = model.DescriptionAr;
         w.Content = model.Content;
+        w.ContentAr = model.ContentAr;
 
         var isNew = model.Id == 0;
         await _db.SaveChangesAsync();
@@ -306,9 +321,10 @@ public class WorkshopsController : AppController
         var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.RegisteredAt).ToListAsync();
         var sb = new StringBuilder();
         sb.AppendLine("Full name,Email,Phone,Organization,Notes,Language,Registered at (UTC)");
+        var phoneFormat = HttpContext.RequestServices.GetRequiredService<PhoneNumberService>();
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(r.Phone), Csv(r.Organization),
+            sb.AppendLine(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(phoneFormat.Format(r.Phone)), Csv(r.Organization),
                 Csv(r.Notes), r.Language, r.RegisteredAt.ToString("yyyy-MM-dd HH:mm")));
         }
 

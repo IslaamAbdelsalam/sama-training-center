@@ -72,8 +72,13 @@ public class Workshop
 {
     public int Id { get; set; }
 
+    /// <summary>English name, shown on the English registration page and in the staff system.</summary>
     [Required, MaxLength(200)]
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Arabic name, shown on the Arabic registration page.</summary>
+    [MaxLength(200)]
+    public string? NameAr { get; set; }
 
     public DateTime StartDateTime { get; set; }
 
@@ -98,7 +103,19 @@ public class Workshop
     [MaxLength(1000)]
     public string? Description { get; set; }
 
+    [MaxLength(1000)]
+    public string? DescriptionAr { get; set; }
+
     public string? Content { get; set; }
+
+    public string? ContentAr { get; set; }
+
+    /// <summary>Name in the visitor's language; falls back to the English name.</summary>
+    public string LocalName(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(NameAr) ? NameAr! : Name;
+
+    public string? LocalDescription(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(DescriptionAr) ? DescriptionAr : Description;
+
+    public string? LocalContent(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(ContentAr) ? ContentAr : Content;
 
     /// <summary>Optional maximum number of registrations.</summary>
     public int? Capacity { get; set; }

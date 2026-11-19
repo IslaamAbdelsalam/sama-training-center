@@ -125,8 +125,11 @@ public class WorkshopFormModel
 {
     public int Id { get; set; }
 
-    [Required, StringLength(200), Display(Name = "Workshop name")]
+    [Required, StringLength(200), Display(Name = "Workshop name (English)")]
     public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Enter the Arabic name. It is shown on the Arabic registration page."), StringLength(200), Display(Name = "اسم الورشة (Arabic)")]
+    public string? NameAr { get; set; }
 
     [Required, DataType(DataType.Date), Display(Name = "Date")]
     public DateTime? Date { get; set; }
@@ -155,11 +158,17 @@ public class WorkshopFormModel
     [Range(1, 100000), Display(Name = "Capacity (optional)")]
     public int? Capacity { get; set; }
 
-    [StringLength(1000), Display(Name = "Short description")]
+    [StringLength(1000), Display(Name = "Short description (English)")]
     public string? Description { get; set; }
 
-    [Display(Name = "Content / agenda")]
+    [StringLength(1000), Display(Name = "وصف مختصر (Arabic)")]
+    public string? DescriptionAr { get; set; }
+
+    [Display(Name = "Content / agenda (English)")]
     public string? Content { get; set; }
+
+    [Display(Name = "المحتوى / المحاور (Arabic)")]
+    public string? ContentAr { get; set; }
 
     public IEnumerable<SelectListItem> Halls { get; set; } = Enumerable.Empty<SelectListItem>();
 }
@@ -176,6 +185,9 @@ public class WorkshopDetailsViewModel
     public WorkshopStatus? NextStatus { get; set; }
     public List<WorkshopExpense> Expenses { get; set; } = new();
     public List<Registration> Registrations { get; set; } = new();
+
+    /// <summary>Phone → number of OTHER workshops this phone registered for (returning students).</summary>
+    public Dictionary<string, int> EarlierWorkshopsByPhone { get; set; } = new();
     public List<WorkshopStatusHistory> History { get; set; } = new();
     public string Tab { get; set; } = "overview";
 }

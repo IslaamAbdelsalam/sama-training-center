@@ -151,7 +151,12 @@ public class WorkshopService
         NotFound,
         Closed,
         Full,
-        Duplicate
+
+        /// <summary>This email is already registered for the workshop.</summary>
+        Duplicate,
+
+        /// <summary>This phone number is already registered for the workshop.</summary>
+        DuplicatePhone
     }
 
     public Task<Workshop?> FindByTokenAsync(string token) =>
@@ -180,6 +185,13 @@ public class WorkshopService
             return RegisterOutcome.Duplicate;
         }
 
+        // One registration per phone number per workshop. Stored as digits only, e.g. 249912345678.
+        var phone = PhoneNumberService.Clean(input.Phone);
+        if (await _db.Registrations.AnyAsync(r => r.WorkshopId == workshop.Id && r.Phone == phone))
+        {
+            return RegisterOutcome.DuplicatePhone;
+        }
+
         if (workshop.Capacity.HasValue && await CountRegistrationsAsync(workshop.Id) >= workshop.Capacity.Value)
         {
             return RegisterOutcome.Full;
@@ -190,7 +202,7 @@ public class WorkshopService
             WorkshopId = workshop.Id,
             FullName = input.FullName.Trim(),
             Email = email,
-            Phone = input.Phone.Trim(),
+            Phone = phone,
             Organization = input.Organization?.Trim(),
             Notes = input.Notes?.Trim(),
             Language = input.Language == "ar" ? "ar" : "en",
@@ -203,8 +215,11 @@ public class WorkshopService
         }
         catch (DbUpdateException)
         {
-            // A concurrent request registered the same email first (unique index).
-            return RegisterOutcome.Duplicate;
+            // A concurrent request registered the same email or phone first (unique indexes).
+            _db.ChangeTracker.Clear();
+            return await _db.Registrations.AnyAsync(r => r.WorkshopId == workshop.Id && r.Phone == phone)
+                ? RegisterOutcome.DuplicatePhone
+                : RegisterOutcome.Duplicate;
         }
 
         return RegisterOutcome.Success;

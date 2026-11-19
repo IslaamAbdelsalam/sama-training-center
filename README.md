@@ -74,6 +74,19 @@ All settings are in `appsettings.json` and can be overridden by environment vari
 
 A workshop's country decides its currency, and every expense on that workshop is in that currency. Amounts in different currencies are never added together: the dashboard and reports show one total per currency. Once a workshop has expenses, its country can't be changed.
 
+## Arabic and English workshop names
+
+Each workshop has an English name (required) and an Arabic name (required), plus optional Arabic description and agenda. The Arabic registration page shows the Arabic text and the English page shows the English text; when an Arabic description or agenda is empty, the English one is shown.
+
+## Phone numbers and duplicate applicants
+
+- The registration page shows a fixed **00** that students can't change. They type the country code and then the number, without the first 0 (e.g. `249912345678`).
+- The number is checked by **country code + exact length** (Sudan 249 + 9 digits, Egypt 20 + 10 digits, plus Gulf and neighbouring countries). Students see a specific message for each mistake and a live hint while typing. A pasted `+249…` or `00249…` is accepted and cleaned.
+- Numbers are stored as digits only (`249912345678`) and shown to staff as `00249 912345678`.
+- **The same phone number can register only once per workshop**, even with a different email (the same applies to the email). The database enforces this with unique indexes.
+- In a workshop's Students tab, a **Returning** badge marks students whose phone number registered for other workshops before.
+- Accepted countries and lengths can be changed in `appsettings.json` under `App:PhoneCountries` (`DialCode`, `Name`, `NameAr`, `Digits`, `Example`).
+
 ## Feedback in the interface
 
 - Every add, update and delete ends with a toast message on the page you land on, and the affected row is briefly highlighted.

@@ -1,5 +1,6 @@
 @model PublicRegistrationViewModel
 @inject PublicText T
+@inject PhoneNumberService Phones
 @{
     Layout = null;
     var l = Model.Lang;
@@ -12,7 +13,10 @@
     string Invalid(string field) => ViewData.ModelState[field]?.Errors.Count > 0 ? "is-invalid" : "";
     var actionUrl = Url.RouteUrl("public-registration", new { token = Model.Token, lang = l });
     var switchUrl = Url.RouteUrl("public-registration", new { token = Model.Token, lang = other });
-    var pageTitle = T.Get("Title", l) + (w != null ? " — " + w.Name : "");
+    var wName = w?.LocalName(l);
+    var wDescription = w?.LocalDescription(l);
+    var wContent = w?.LocalContent(l);
+    var pageTitle = T.Get("Title", l) + (w != null ? " — " + wName : "");
     var culture = System.Globalization.CultureInfo.GetCultureInfo(isAr ? "ar-EG" : "en-GB");
 }
 <!doctype html>
@@ -40,7 +44,7 @@
             {
                 <div class="p-5 p-md-6 pb-0">
                     <div class="pub-eyebrow mb-2">@T.Get("Title", l)</div>
-                    <h3 class="mb-4 fw-semibold" dir="auto">@w.Name</h3>
+                    <h3 class="mb-4 fw-semibold" dir="auto">@wName</h3>
                     <div class="pub-chips mb-2">
                         <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("dddd d MMMM yyyy", culture)</span>
                         <span class="pub-chip"><i class="icon-base ri ri-time-line"></i><span dir="ltr">@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</span></span>
@@ -57,15 +61,15 @@
                             <span class="pub-chip"><i class="icon-base ri ri-user-line"></i>@T.Get("SeatsLeft", l): @Model.SeatsLeft</span>
                         }
                     </div>
-                    @if (Model.State == "form" && (!string.IsNullOrWhiteSpace(w.Description) || !string.IsNullOrWhiteSpace(w.Content)))
+                    @if (Model.State == "form" && (!string.IsNullOrWhiteSpace(wDescription) || !string.IsNullOrWhiteSpace(wContent)))
                     {
                         <div class="pub-about mt-4" dir="auto">
-                            @if (!string.IsNullOrWhiteSpace(w.Description)) { <p class="mb-2 content-pre">@w.Description</p> }
-                            @if (!string.IsNullOrWhiteSpace(w.Content))
+                            @if (!string.IsNullOrWhiteSpace(wDescription)) { <p class="mb-2 content-pre">@wDescription</p> }
+                            @if (!string.IsNullOrWhiteSpace(wContent))
                             {
                                 <details>
                                     <summary>@T.Get("About", l)</summary>
-                                    <p class="content-pre small mt-2 mb-0">@w.Content</p>
+                                    <p class="content-pre small mt-2 mb-0">@wContent</p>
                                 </details>
                             }
                         </div>
@@ -85,7 +89,7 @@
                             @if (w != null)
                             {
                                 <div class="pub-chips justify-content-center">
-                                    <span class="pub-chip" dir="auto"><i class="icon-base ri ri-bookmark-line"></i>@w.Name</span>
+                                    <span class="pub-chip" dir="auto"><i class="icon-base ri ri-bookmark-line"></i>@wName</span>
                                     <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("d MMMM yyyy", culture) · <span dir="ltr">@w.StartDateTime.ToString("HH:mm")</span></span>
                                 </div>
                             }
@@ -135,8 +139,15 @@
                             </div>
                             <div class="mb-4">
                                 <label class="form-label" for="Phone">@T.Get("Phone", l)</label>
-                                <input id="Phone" name="Phone" type="tel" value="@Model.Form.Phone" class="form-control @Invalid("Phone")" maxlength="20" autocomplete="tel" dir="ltr" placeholder="@(w?.Country == "EG" ? "+20 10 0000 0000" : "+249 91 000 0000")" required />
-                                <div class="invalid-feedback">@Err("Phone")</div>
+                                <div class="input-group has-validation phone-group" dir="ltr">
+                                    <span class="input-group-text phone-prefix" aria-hidden="true">00</span>
+                                    <input id="Phone" name="Phone" type="tel" inputmode="numeric" value="@PhoneNumberService.Clean(Model.Form.Phone)"
+                                           class="form-control @Invalid("Phone")" maxlength="15" autocomplete="tel" dir="ltr"
+                                           placeholder="@(w?.Country == "EG" ? "201001234567" : "249912345678")" aria-describedby="phone-help" required
+                                           data-phone-countries="@System.Text.Json.JsonSerializer.Serialize(Phones.Countries.Select(c => new { c = c.DialCode, n = isAr ? c.NameAr : c.Name, d = c.Digits }))" />
+                                    <div class="invalid-feedback">@Err("Phone")</div>
+                                </div>
+                                <div id="phone-help" class="form-text" data-help-default="@T.Get("PhoneHint", l)" data-ok-text="@(isAr ? "✓ {0}، رقم صحيح" : "✓ {0} number, looks right")" data-need-text="@(isAr ? "{0}: {1} أرقام بعد {2} — باقي {3}" : "{0}: {1} digits after {2} — {3} to go")" data-over-text="@(isAr ? "{0}: {1} أرقام فقط بعد {2}" : "{0}: only {1} digits after {2}")">@T.Get("PhoneHint", l)</div>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label" for="Organization">@T.Get("Organization", l) <span class="text-body-secondary fw-normal small">@T.Get("Optional", l)</span></label>

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SamaTraining.Web.Data;
@@ -10,15 +9,17 @@ namespace SamaTraining.Web.Controllers;
 
 /// <summary>US-11 / US-12: the public, bilingual registration page reached at /register/{token}.</summary>
 [AllowAnonymous]
-public partial class PublicRegistrationController : Controller
+public class PublicRegistrationController : Controller
 {
     private readonly WorkshopService _service;
     private readonly PublicText _text;
+    private readonly PhoneNumberService _phones;
 
-    public PublicRegistrationController(WorkshopService service, PublicText text)
+    public PublicRegistrationController(WorkshopService service, PublicText text, PhoneNumberService phones)
     {
         _service = service;
         _text = text;
+        _phones = phones;
     }
 
     [HttpGet]
@@ -45,8 +46,11 @@ public partial class PublicRegistrationController : Controller
             ModelState.AddModelError(nameof(form.FullName), _text.Get("Required", l));
         if (string.IsNullOrWhiteSpace(form.Email) || form.Email.Length > 256 || !new EmailAddressAttribute().IsValid(form.Email.Trim()))
             ModelState.AddModelError(nameof(form.Email), _text.Get("InvalidEmail", l));
-        if (string.IsNullOrWhiteSpace(form.Phone) || !PhoneRegex().IsMatch(form.Phone.Trim()))
-            ModelState.AddModelError(nameof(form.Phone), _text.Get("InvalidPhone", l));
+        var phone = _phones.Check(form.Phone);
+        if (phone.Status != PhoneCheck.Valid)
+            ModelState.AddModelError(nameof(form.Phone), PhoneError(phone, l));
+        else
+            form.Phone = phone.Normalized; // shown back without spaces, after the fixed 00
         if (form.Organization?.Length > 150) form.Organization = form.Organization[..150];
         if (form.Notes?.Length > 500) form.Notes = form.Notes[..500];
 
@@ -72,6 +76,10 @@ public partial class PublicRegistrationController : Controller
                 return RedirectToAction(nameof(Done), new { token, lang = l });
             case WorkshopService.RegisterOutcome.Duplicate:
                 model.Error = _text.Get("Duplicate", l);
+                return View(model);
+            case WorkshopService.RegisterOutcome.DuplicatePhone:
+                model.Error = _text.Get("DuplicatePhone", l);
+                ModelState.AddModelError(nameof(form.Phone), _text.Get("DuplicatePhone", l));
                 return View(model);
             case WorkshopService.RegisterOutcome.Full:
                 model.State = "full";
@@ -121,6 +129,18 @@ public partial class PublicRegistrationController : Controller
         return model;
     }
 
-    [GeneratedRegex(@"^\+?[0-9\s\-()]{7,20}$")]
-    private static partial Regex PhoneRegex();
+    /// <summary>A specific, friendly message for each kind of phone mistake.</summary>
+    private string PhoneError(PhoneResult r, string l)
+    {
+        var name = r.Country == null ? "" : (l == "ar" ? r.Country.NameAr : r.Country.Name);
+        return r.Status switch
+        {
+            PhoneCheck.Empty => _text.Get("PhoneRequired", l),
+            PhoneCheck.NotDigits => _text.Get("PhoneDigitsOnly", l),
+            PhoneCheck.UnknownCountry => _text.Get("PhoneUnknownCountry", l),
+            PhoneCheck.LeadingZero => string.Format(_text.Get("PhoneLeadingZero", l), r.Country!.DialCode, r.Country.Example),
+            PhoneCheck.WrongLength => string.Format(_text.Get("PhoneWrongLength", l), name, r.Country!.DialCode, r.Country.Digits, r.Country.Example),
+            _ => _text.Get("PhoneDigitsOnly", l)
+        };
+    }
 }

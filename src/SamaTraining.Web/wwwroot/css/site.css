@@ -206,3 +206,10 @@
 [dir="rtl"] .ms-auto { margin-left: 0 !important; margin-right: auto !important; }
 [dir="rtl"] .pub-state { text-align: center; }
 html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
+
+/* Phone field: fixed 00 prefix */
+.phone-group .phone-prefix {
+  font-weight: 600; color: var(--bs-heading-color); background: #f3f4f6;
+  border-radius: 0.6rem 0 0 0.6rem; letter-spacing: 0.05em; user-select: none;
+}
+.public-card .phone-group .form-control { border-radius: 0 0.6rem 0.6rem 0; letter-spacing: 0.04em; }

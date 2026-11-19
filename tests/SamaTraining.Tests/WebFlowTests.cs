@@ -69,6 +69,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         {
             ["Id"] = "0",
             ["Name"] = "Project Management Essentials",
+            ["NameAr"] = "ورشة Project Management Essentials",
             ["Date"] = DateTime.Today.AddDays(10).ToString("yyyy-MM-dd"),
             ["StartTime"] = "09:00",
             ["EndTime"] = "13:00",
@@ -165,6 +166,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         {
             ["Id"] = id.ToString(),
             ["Name"] = "Project Management Essentials",
+            ["NameAr"] = "ورشة Project Management Essentials",
             ["Date"] = DateTime.Today.AddDays(10).ToString("yyyy-MM-dd"),
             ["StartTime"] = "09:00",
             ["EndTime"] = "13:00",
@@ -218,6 +220,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         {
             ["Id"] = "0",
             ["Name"] = "Bad workshop",
+            ["NameAr"] = "ورشة Bad workshop",
             ["Date"] = DateTime.Today.ToString("yyyy-MM-dd"),
             ["StartTime"] = "14:00",
             ["EndTime"] = "10:00",
@@ -325,6 +328,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         {
             ["Id"] = "0",
             ["Name"] = "Cairo Volunteers Training",
+            ["NameAr"] = "ورشة Cairo Volunteers Training",
             ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
             ["StartTime"] = "10:00",
             ["EndTime"] = "12:00",
@@ -350,6 +354,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         {
             ["Id"] = "0",
             ["Name"] = "Bad country",
+            ["NameAr"] = "ورشة Bad country",
             ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
             ["StartTime"] = "10:00",
             ["EndTime"] = "12:00",
@@ -360,5 +365,103 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var html = await res.Content.ReadAsStringAsync();
         Assert.Contains("Choose a country from the list", html);
         Assert.Contains("Not saved yet", html); // validation toast
+    }
+
+    private async Task<(HttpClient Client, string Token, string DetailsUrl)> OpenWorkshopAsync(string name, string nameAr)
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0",
+            ["Name"] = name,
+            ["NameAr"] = nameAr,
+            ["Date"] = DateTime.Today.AddDays(8).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "09:00",
+            ["EndTime"] = "12:00",
+            ["Type"] = "Online",
+            ["Country"] = "SD"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
+        var detailsUrl = res.Headers.Location!.ToString();
+        var id = int.Parse(detailsUrl.Split('/').Last().Split('?')[0]);
+        var details = await client.GetStringAsync(detailsUrl);
+        await client.PostAsync("/Workshops/OpenRegistration", Form(details, new() { ["id"] = id.ToString() }));
+        var token = await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.RegistrationToken!).SingleAsync());
+        return (client, token, detailsUrl);
+    }
+
+    [Fact] // Arabic page shows the Arabic name, English page the English name
+    public async Task RegistrationPage_ShowsNameInPageLanguage()
+    {
+        var (_, token, _) = await OpenWorkshopAsync("Leadership Skills", "مهارات القيادة");
+        var student = _app.CreateBrowser();
+
+        var ar = await student.GetStringAsync($"/register/{token}?lang=ar");
+        Assert.Contains("مهارات القيادة", ar);
+        Assert.DoesNotContain("Leadership Skills", ar);
+
+        var en = await student.GetStringAsync($"/register/{token}?lang=en");
+        Assert.Contains("Leadership Skills", en);
+        Assert.DoesNotContain("مهارات القيادة", en);
+    }
+
+    [Fact]
+    public async Task ArabicName_IsRequired()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0",
+            ["Name"] = "No Arabic name",
+            ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "10:00",
+            ["EndTime"] = "12:00",
+            ["Type"] = "Online",
+            ["Country"] = "SD"
+        }));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("Enter the Arabic name", await res.Content.ReadAsStringAsync());
+    }
+
+    [Fact] // Phone: fixed 00, country code + exact length, one registration per phone per workshop
+    public async Task Phone_IsValidated_AndCannotRegisterTwice()
+    {
+        var (client, token, detailsUrl) = await OpenWorkshopAsync("Phone Rules Workshop", "ورشة قواعد الهاتف");
+        var student = _app.CreateBrowser();
+
+        async Task<string> Submit(string email, string phone, string lang = "en")
+        {
+            var page = await student.GetStringAsync($"/register/{token}?lang={lang}");
+            var res = await student.PostAsync($"/register/{token}?lang={lang}", Form(page, new()
+            {
+                ["FullName"] = "Test Student",
+                ["Email"] = email,
+                ["Phone"] = phone
+            }));
+            if (res.StatusCode == HttpStatusCode.Redirect) return "REDIRECT";
+            return await res.Content.ReadAsStringAsync();
+        }
+
+        var page0 = await student.GetStringAsync($"/register/{token}?lang=en");
+        Assert.Contains(">00</span>", page0); // fixed prefix
+
+        Assert.Contains("Sudan numbers are 249 followed by 9 digits", await Submit("p1@x.com", "24991234567"));    // too short
+        Assert.Contains("Remove the 0 after the country code", await Submit("p1@x.com", "2490912345678"));      // trunk 0
+        Assert.Contains("Start with your country code", await Submit("p1@x.com", "0912345678"));                // no code
+        Assert.Contains("Egypt numbers are 20 followed by 10 digits", await Submit("p1@x.com", "20100123456")); // too short
+        Assert.Contains("رقم السودان يتكون من 249 ثم 9 أرقام", await Submit("p1@x.com", "2499123456", "ar"));
+
+        // Valid, even when typed with 00, + or spaces
+        Assert.Equal("REDIRECT", await Submit("p1@x.com", "00249 91 234 5678"));
+        Assert.Equal("249912345678", await _app.WithDbAsync(db => db.Registrations.Where(r => r.Email == "p1@x.com").Select(r => r.Phone).SingleAsync()));
+
+        // Same phone, different email -> blocked
+        Assert.Contains("phone number is already registered", await Submit("p2@x.com", "+249912345678"));
+
+        // Staff list shows it formatted with 00
+        var details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
+        Assert.Contains("00249 912345678", details);
     }
 }
