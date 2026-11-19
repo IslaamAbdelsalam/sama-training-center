@@ -337,7 +337,12 @@ namespace SamaTraining.Web.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Phone");
+
                     b.HasIndex("WorkshopId", "Email")
+                        .IsUnique();
+
+                    b.HasIndex("WorkshopId", "Phone")
                         .IsUnique();
 
                     b.ToTable("Registrations");
@@ -355,6 +360,9 @@ namespace SamaTraining.Web.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentAr")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Country")
@@ -378,6 +386,10 @@ namespace SamaTraining.Web.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<string>("DescriptionAr")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<DateTime>("EndDateTime")
                         .HasColumnType("datetime2");
 
@@ -390,6 +402,10 @@ namespace SamaTraining.Web.Data.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NameAr")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
