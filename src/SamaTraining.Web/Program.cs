@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SamaTraining.Web.Data;
@@ -6,6 +7,34 @@ using SamaTraining.Web.Security;
 using SamaTraining.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---- Private server settings (production) ----
+// Secrets (database connection string, first admin password) live in a file on the server,
+// OUTSIDE the website folder, so they are never in GitHub and survive every redeploy:
+//   <site root>/settings/appsettings.Production.json   (next to the wwwroot folder)
+// Override the folder with the SAMA_SETTINGS_PATH environment variable if needed.
+var privateSettingsDir = Environment.GetEnvironmentVariable("SAMA_SETTINGS_PATH")
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "settings"));
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Configuration.AddJsonFile(Path.Combine(privateSettingsDir, "appsettings.Production.json"), optional: true, reloadOnChange: false);
+}
+
+// Keep login cookies valid across app restarts on shared hosting (keys stored beside the settings file).
+if (builder.Environment.IsProduction())
+{
+    try
+    {
+        var keysDir = Directory.CreateDirectory(Path.Combine(privateSettingsDir, "keys"));
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(keysDir)
+            .SetApplicationName("SamaTraining");
+    }
+    catch (Exception)
+    {
+        // Folder not writable: fall back to the default key storage.
+    }
+}
 
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection(AppSettings.Section));
 builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection(SeedOptions.Section));

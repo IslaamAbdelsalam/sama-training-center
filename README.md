@@ -117,6 +117,22 @@ Each workshop has an English name (required) and an Arabic name (required), plus
    - `ASPNETCORE_ENVIRONMENT=Production`
 7. Browse to the site, sign in as `admin` with the temporary password, and set a new one. Remove `SeedAdmin__Password` afterwards.
 
+## Hosting on MonsterASP.NET (live: https://samatraining.runasp.net)
+
+- **Website:** `site109722` (free plan, EU datacenter), address `samatraining.runasp.net`. DNS is handled by MonsterASP.
+- **Database:** SQL Server `db81602` (shown as *SamaTraining* in the control panel), collation `Arabic_CI_AS`, all text columns `nvarchar`, so Arabic is stored, sorted and searched correctly.
+- **Deploy:** MonsterASP control panel → Website → *Git* → *Build .NET app* from this repository's `main` branch, then *Build & publish*.
+- **Secrets are not in GitHub.** The app reads `settings/appsettings.Production.json` from the site root, one level above `wwwroot`, so redeploys never overwrite it:
+
+```json
+{
+  "ConnectionStrings": { "DefaultConnection": "<connection string from the database page>" },
+  "SeedAdmin": { "Password": "<temporary admin password>" }
+}
+```
+
+  Login cookie keys are kept in `settings/keys` so users stay signed in across restarts. After the first sign-in as `admin`, remove the `SeedAdmin` block.
+
 ## Database migrations
 
 The schema is created with EF Core migrations under `src/SamaTraining.Web/Data/Migrations`. When you change an entity:
