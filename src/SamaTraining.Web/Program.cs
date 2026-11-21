@@ -107,7 +107,7 @@ builder.Services.AddControllersWithViews(options =>
 
 var app = builder.Build();
 
-await InitializeDatabaseAsync(app);
+await InitializeDatabaseAsync(app, app.Environment.IsProduction() ? Path.Combine(privateSettingsDir, "first-admin-password.txt") : null);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -135,7 +135,7 @@ app.MapControllerRoute(
 
 app.Run();
 
-static async Task InitializeDatabaseAsync(WebApplication app)
+static async Task InitializeDatabaseAsync(WebApplication app, string? adminPasswordFile)
 {
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
@@ -165,6 +165,7 @@ static async Task InitializeDatabaseAsync(WebApplication app)
     }
 
     var seed = config.GetSection(SeedOptions.Section).Get<SeedOptions>() ?? new SeedOptions();
+    seed.PasswordFile ??= adminPasswordFile;
     await DbSeeder.SeedAsync(services, seed, logger);
 }
 

@@ -14,6 +14,12 @@ public class SeedOptions
 
     /// <summary>Initial password. The admin must change it on first login.</summary>
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When set and no usable Password is configured, a random temporary password is generated
+    /// and written to this file (production: private/first-admin-password.txt).
+    /// </summary>
+    public string? PasswordFile { get; set; }
 }
 
 public static class DbSeeder
@@ -57,7 +63,29 @@ public static class DbSeeder
 
         if (!await userManager.Users.AnyAsync())
         {
-            if (string.IsNullOrWhiteSpace(options.Password))
+            // No usable password configured (empty or the template placeholder): generate one and
+            // write it to a private file on the server, so nobody has to type it into a config file.
+            var placeholder = options.Password.StartsWith("TYPE_A_", StringComparison.Ordinal);
+            if ((string.IsNullOrWhiteSpace(options.Password) || placeholder) && !string.IsNullOrEmpty(options.PasswordFile))
+            {
+                options.Password = GeneratePassword();
+                try
+                {
+                    await File.WriteAllTextAsync(options.PasswordFile,
+                        $"SAMA Training Center - first administrator{Environment.NewLine}" +
+                        $"Username: {options.UserName}{Environment.NewLine}" +
+                        $"Temporary password: {options.Password}{Environment.NewLine}" +
+                        $"You must change it at first sign-in. Delete this file afterwards.{Environment.NewLine}");
+                    logger.LogInformation("Generated the first administrator's temporary password into {File}.", options.PasswordFile);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Could not write the generated admin password file; no administrator was created.");
+                    options.Password = string.Empty;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(options.Password) || options.Password.StartsWith("TYPE_A_", StringComparison.Ordinal))
             {
                 logger.LogWarning("No users exist and SeedAdmin:Password is empty, so no administrator was created. Set SeedAdmin:Password and restart.");
             }
@@ -106,5 +134,16 @@ public static class DbSeeder
         }
 
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>A random 16-character password that meets the sign-in password rules.</summary>
+    private static string GeneratePassword()
+    {
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", lower = "abcdefghijkmnopqrstuvwxyz", digits = "23456789", symbols = "!@#$%*?";
+        const string all = upper + lower + digits + symbols;
+        char Pick(string set) => set[System.Security.Cryptography.RandomNumberGenerator.GetInt32(set.Length)];
+        var chars = new List<char> { Pick(upper), Pick(lower), Pick(digits), Pick(symbols) };
+        while (chars.Count < 16) chars.Add(Pick(all));
+        return new string(chars.OrderBy(_ => System.Security.Cryptography.RandomNumberGenerator.GetInt32(int.MaxValue)).ToArray());
     }
 }
