@@ -17,6 +17,23 @@ Built with **ASP.NET Core 8 MVC**, **Entity Framework Core**, **SQL Server**, **
 | Reports | Totals per currency, seats filled, cost per student, expenses by category, registrations by month, Excel (CSV) export | — |
 | User Management | Users, roles, editable role permissions, lockout, forced password change | US-17 – US-20 |
 
+## Backlog v2 (US-01 – US-19)
+
+- **Settings:** halls/locations and expense categories have a required Arabic name (halls also an Arabic location), full-width edit screens, and a Delete button on the edit screen that is blocked while the record is in use.
+- **Workshops:** rich-text agenda (headings, bold, lists, colours, links; unsafe HTML is stripped), single-day or date-range schedule, registration fee per participant in the workshop's currency (empty/0 = free).
+- **History:** status changes (with previous/new status, user, time), registration opened/closed and new links are all recorded.
+- **Status:** forward Pending → Ongoing → Completed; users with *Reverse a workshop status* can undo one step (Ongoing → Pending, Completed → Ongoing).
+- **Expenses & payments:** can be managed from creation until the workshop is completed; after that they are read-only. Fee payments (collections) are recorded per participant with method and reference; each participant shows Paid / Partially paid / Unpaid.
+- **Finance (dashboard, workshop page, reports, CSV):** Expected income = fee × participants · Collected = payments · Outstanding = expected − collected · Net profit = collected − expenses. Always per currency.
+- **Registration page:** dates, type, hall and location, fee and currency in the selected language; seats left are hidden; capacity is enforced with a row lock so concurrent submissions can't overbook; a full workshop shows an apology in the applicant's language.
+- **Forgot password:** e-mailed reset link (expires after `App:PasswordResetMinutes`, default 60). Needs SMTP settings in `private/appsettings.Production.json`:
+
+```json
+"Smtp": { "Host": "smtp.example.com", "Port": 587, "EnableSsl": true, "UserName": "...", "Password": "...", "FromAddress": "no-reply@example.com" }
+```
+
+  Without SMTP the page says to ask the administrator, who can still reset passwords from *Users*.
+
 ## Project structure
 
 ```
