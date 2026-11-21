@@ -225,11 +225,19 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 .currency-total span { font-size: 1rem; font-weight: 500; color: var(--bs-secondary-color); }
 
 /* ---- Rich-text agenda (US-04) ---- */
-.rich-editor { min-height: 220px; font-size: .9375rem; }
-.rich-editor .ql-editor { min-height: 220px; }
-.ql-toolbar.ql-snow { border-radius: .5rem .5rem 0 0; border-color: var(--bs-border-color); }
-.ql-container.ql-snow { border-radius: 0 0 .5rem .5rem; border-color: var(--bs-border-color); font-family: inherit; }
-[dir="rtl"] .ql-editor { text-align: right; }
+/* Quill's container is height:100%, which made it spill over the next editor: size it by its content instead. */
+.ql-container.ql-snow { height: auto; border-color: var(--bs-border-color); border-radius: 0 0 .5rem .5rem; font-family: inherit; font-size: .9375rem; background: #fff; }
+.ql-toolbar.ql-snow { border-color: var(--bs-border-color); border-radius: .5rem .5rem 0 0; background: #f8faf9; padding: 6px 8px; }
+/* Keep the toolbar left-to-right in the Arabic editor too, so its floated buttons line up (the text itself stays RTL). */
+.ql-toolbar.ql-snow { direction: ltr; text-align: left; }
+.ql-toolbar.ql-snow .ql-formats { margin-right: 10px; }
+.ql-toolbar.ql-snow .ql-picker-label { padding-left: 6px; }
+.rich-editor .ql-editor { min-height: 200px; max-height: 480px; overflow-y: auto; line-height: 1.6; }
+.rich-editor .ql-editor.ql-blank::before { font-style: normal; color: var(--bs-secondary-color); }
+[dir="rtl"] .rich-editor .ql-editor { direction: rtl; text-align: right; }
+[dir="rtl"] .rich-editor .ql-editor.ql-blank::before { left: auto; right: 15px; }
+.ql-container.ql-snow:focus-within { border-color: var(--bs-primary); box-shadow: 0 0 0 .15rem rgba(22, 163, 74, .15); }
+.rich-editor-group + .rich-editor-group { margin-top: .5rem; }
 .rich-text { line-height: 1.65; overflow-wrap: anywhere; }
 .rich-text > :last-child { margin-bottom: 0; }
 .rich-text h2, .rich-text h3, .rich-text h4 { margin: 1rem 0 .5rem; }

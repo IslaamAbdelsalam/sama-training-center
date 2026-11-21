@@ -62,16 +62,16 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-5">
-                        <div class="col-12">
+                        <div class="col-12 rich-editor-group">
                             <label class="form-label" for="Content">Agenda (English)</label>
                             <textarea asp-for="Content" class="d-none"></textarea>
                             <div class="rich-editor" data-rich-editor="Content" dir="ltr" data-placeholder="Topics, trainer, requirements…"></div>
                         </div>
-                        <div class="col-12" dir="rtl">
+                        <div class="col-12 rich-editor-group" dir="rtl">
                             <label class="form-label" for="ContentAr">المحاور / المحتوى (Arabic)</label>
                             <textarea asp-for="ContentAr" class="d-none"></textarea>
                             <div class="rich-editor" data-rich-editor="ContentAr" dir="rtl" data-placeholder="المحاور، المدرب، المتطلبات…"></div>
-                            <div class="form-text">Optional. If empty, the English agenda is shown on the Arabic page.</div>
+                            <div class="form-text" dir="ltr" style="text-align:right">Optional. If empty, the English agenda is shown on the Arabic page.</div>
                         </div>
                     </div>
                 </div>
