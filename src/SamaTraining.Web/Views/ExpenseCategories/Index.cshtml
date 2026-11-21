@@ -27,7 +27,7 @@
             {
                 var used = uses.GetValueOrDefault(c.Id);
                 <tr class="@(highlight == c.Id.ToString() ? "row-highlight" : "")">
-                    <td class="fw-medium">@c.Name</td>
+                    <td><div class="fw-medium text-heading">@c.Name</div>@if (!string.IsNullOrWhiteSpace(c.NameAr)) { <small class="text-body-secondary" dir="rtl">@c.NameAr</small> } else { <small class="text-warning">Arabic name missing</small> }</td>
                     <td>@c.Description</td>
                     <td>@used expense(s)</td>
                     <td>

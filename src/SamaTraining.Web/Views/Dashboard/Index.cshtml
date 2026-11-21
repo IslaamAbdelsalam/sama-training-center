@@ -78,6 +78,20 @@
                     }
                 </div>
                 <div class="card-body">
+                    @if (Model.ShowIncome)
+                    {
+                        var f = c.Finance;
+                        <div class="fin-grid mb-4">
+                            <div class="fin-tile"><small>Expected income</small><strong>@f.ExpectedIncome.ToString("N2")</strong></div>
+                            <div class="fin-tile"><small>Collected</small><strong class="text-success">@f.Collected.ToString("N2")</strong></div>
+                            <div class="fin-tile"><small>Outstanding</small><strong class="text-warning">@f.Outstanding.ToString("N2")</strong></div>
+                            @if (Model.ShowExpenses)
+                            {
+                                <div class="fin-tile"><small>Total expenses</small><strong class="text-danger">@f.TotalExpenses.ToString("N2")</strong></div>
+                                <div class="fin-tile @(f.NetProfit < 0 ? "profit-neg" : "profit-pos")"><small>Net profit</small><strong>@f.NetProfit.ToString("N2") @c.Currency</strong></div>
+                            }
+                        </div>
+                    }
                     @if (Model.ShowExpenses)
                     {
                         <div class="mb-4">
@@ -147,7 +161,7 @@
                                 <a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a>
                                 <small class="d-block text-body-secondary">@(w.Type == WorkshopType.Online ? "Online" : w.Hall?.Name ?? "On-site")</small>
                             </td>
-                            <td>@w.StartDateTime.ToString("dd MMM yyyy") <small class="text-body-secondary d-block">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")</small></td>
+                            <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime) <small class="text-body-secondary d-block">@DisplayFormat.Hours(w)@(w.IsMultiDay ? " daily" : "")</small></td>
                             <td>@settings.CountryName(w.Country) <span class="badge bg-label-secondary ms-1">@w.CurrencyCode</span></td>
                             <td><partial name="_StatusBadge" model="w.Status" /></td>
                             <td>

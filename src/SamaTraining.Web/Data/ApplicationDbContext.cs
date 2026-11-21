@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<WorkshopStatusHistory> WorkshopStatusHistory => Set<WorkshopStatusHistory>();
     public DbSet<Registration> Registrations => Set<Registration>();
     public DbSet<WorkshopExpense> WorkshopExpenses => Set<WorkshopExpense>();
+    public DbSet<FeeCollection> FeeCollections => Set<FeeCollection>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -43,6 +44,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             e.Property(x => x.FromStatus).HasConversion<int>();
             e.Property(x => x.ToStatus).HasConversion<int>();
+            e.Property(x => x.Action).HasConversion<int>();
             e.HasOne(x => x.Workshop).WithMany(w => w.StatusHistory).HasForeignKey(x => x.WorkshopId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -62,6 +64,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             e.HasOne(x => x.Workshop).WithMany(w => w.Expenses).HasForeignKey(x => x.WorkshopId).OnDelete(DeleteBehavior.Restrict);
             // US-01: a category in use cannot be deleted.
             e.HasOne(x => x.ExpenseCategory).WithMany(c => c.Expenses).HasForeignKey(x => x.ExpenseCategoryId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // US-18: collections can't be orphaned — a workshop or registration with payments can't be deleted.
+        builder.Entity<FeeCollection>(e =>
+        {
+            e.Property(x => x.Method).HasConversion<int>();
+            e.HasOne(x => x.Workshop).WithMany(w => w.Collections).HasForeignKey(x => x.WorkshopId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Registration).WithMany(r => r.Collections).HasForeignKey(x => x.RegistrationId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.CollectedOn);
         });
     }
 }

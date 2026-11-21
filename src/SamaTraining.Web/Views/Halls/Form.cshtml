@@ -1,39 +1,89 @@
 @model HallFormModel
 @{
-    ViewData["Title"] = Model.Id == 0 ? "Add Hall" : "Edit Hall";
+    ViewData["Title"] = Model.Id == 0 ? "Add Hall / Location" : "Edit Hall / Location";
 }
-<h4 class="mb-6">@ViewData["Title"]</h4>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-6">
+    <div>
+        <a asp-action="Index" class="small d-inline-flex align-items-center mb-1"><i class="icon-base ri ri-arrow-left-line me-1"></i>Halls &amp; Locations</a>
+        <h4 class="mb-0">@ViewData["Title"]</h4>
+    </div>
+</div>
 
-<div class="card" style="max-width: 640px">
-    <div class="card-body">
-        <form asp-action="Save" method="post">
+<div class="card">
+    <form asp-action="Save" method="post" id="hall-form">
+        <div class="card-body">
             <input type="hidden" asp-for="Id" />
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-            <div class="form-floating form-floating-outline mb-5">
-                <input asp-for="Name" class="form-control" placeholder="Name" autofocus />
-                <label asp-for="Name"></label>
-                <span asp-validation-for="Name" class="text-danger small"></span>
+            <div class="row g-5">
+                <div class="col-md-6">
+                    <div class="form-floating form-floating-outline">
+                        <input asp-for="Name" class="form-control" placeholder="Name" dir="ltr" autofocus />
+                        <label asp-for="Name"></label>
+                    </div>
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6" dir="rtl">
+                    <div class="form-floating form-floating-outline">
+                        <input asp-for="NameAr" class="form-control" placeholder="اسم القاعة" />
+                        <label asp-for="NameAr"></label>
+                    </div>
+                    <span asp-validation-for="NameAr" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating form-floating-outline">
+                        <input asp-for="Location" class="form-control" placeholder="Location" dir="ltr" />
+                        <label asp-for="Location"></label>
+                    </div>
+                    <span asp-validation-for="Location" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6" dir="rtl">
+                    <div class="form-floating form-floating-outline">
+                        <input asp-for="LocationAr" class="form-control" placeholder="الموقع" />
+                        <label asp-for="LocationAr"></label>
+                    </div>
+                    <span asp-validation-for="LocationAr" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating form-floating-outline">
+                        <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
+                        <label asp-for="Capacity"></label>
+                    </div>
+                    <span asp-validation-for="Capacity" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 d-flex align-items-center">
+                    <div class="form-check form-switch mb-0">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                        <div class="form-text">Inactive halls can't be chosen for new workshops.</div>
+                    </div>
+                </div>
             </div>
-            <div class="form-floating form-floating-outline mb-5">
-                <input asp-for="Location" class="form-control" placeholder="Location" />
-                <label asp-for="Location"></label>
-                <span asp-validation-for="Location" class="text-danger small"></span>
-            </div>
-            <div class="form-floating form-floating-outline mb-5">
-                <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
-                <label asp-for="Capacity"></label>
-                <span asp-validation-for="Capacity" class="text-danger small"></span>
-            </div>
-            <div class="form-check form-switch mb-6">
-                <input asp-for="IsActive" class="form-check-input" />
-                <label asp-for="IsActive" class="form-check-label"></label>
-                <div class="form-text">Inactive halls can't be chosen for new workshops.</div>
-            </div>
-
-            <button type="submit" class="btn btn-primary me-2">Save</button>
+            <div class="form-text mt-4">The Arabic name and location are shown on the Arabic registration page.</div>
+        </div>
+    </form>
+    <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-5">
+        <div>
+            <button type="submit" form="hall-form" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>Save</button>
             <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
-        </form>
+        </div>
+        @if (Model.Id != 0)
+        {
+            @if (Model.UsedBy == 0)
+            {
+                <form asp-action="Delete" asp-route-id="@Model.Id" asp-route-fromEdit="true" method="post"
+                      data-confirm="&quot;@Model.Name&quot; will be permanently removed from Halls &amp; Locations." data-confirm-title="Delete this hall?" data-confirm-button="Delete">
+                    <button type="submit" class="btn btn-outline-danger" data-loading-text="Deleting…"><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
+                </form>
+            }
+            else
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-body-secondary"><i class="icon-base ri ri-information-line me-1"></i>Used by @Model.UsedBy workshop(s), so it can't be deleted. Switch it to inactive instead.</span>
+                    <button type="button" class="btn btn-outline-danger" disabled><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
+                </div>
+            }
+        }
     </div>
 </div>
 

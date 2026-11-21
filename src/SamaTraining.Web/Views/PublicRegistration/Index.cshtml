@@ -17,7 +17,6 @@
     var wDescription = w?.LocalDescription(l);
     var wContent = w?.LocalContent(l);
     var pageTitle = T.Get("Title", l) + (w != null ? " — " + wName : "");
-    var culture = System.Globalization.CultureInfo.GetCultureInfo(isAr ? "ar-EG" : "en-GB");
 }
 <!doctype html>
 <html lang="@l" dir="@(isAr ? "rtl" : "ltr")" class="layout-wide" data-assets-path="/assets/">
@@ -45,31 +44,54 @@
                 <div class="p-5 p-md-6 pb-0">
                     <div class="pub-eyebrow mb-2">@T.Get("Title", l)</div>
                     <h3 class="mb-4 fw-semibold" dir="auto">@wName</h3>
-                    <div class="pub-chips mb-2">
-                        <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("dddd d MMMM yyyy", culture)</span>
-                        <span class="pub-chip"><i class="icon-base ri ri-time-line"></i><span dir="ltr">@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</span></span>
-                        @if (w.Type == WorkshopType.Online)
+                    <div class="pub-facts mb-2">
+                        <div class="pub-fact">
+                            <i class="icon-base ri ri-calendar-event-line"></i>
+                            <div><small>@T.Get("Dates", l)</small><span>@DisplayFormat.Dates(w, l)</span></div>
+                        </div>
+                        <div class="pub-fact">
+                            <i class="icon-base ri ri-time-line"></i>
+                            <div><small>@T.Get("Time", l)</small><span><span dir="ltr">@DisplayFormat.Hours(w)</span>@(w.IsMultiDay ? " " + T.Get("Daily", l) : "")</span></div>
+                        </div>
+                        <div class="pub-fact">
+                            <i class="icon-base ri @(w.Type == WorkshopType.Online ? "ri-global-line" : "ri-map-pin-line")"></i>
+                            <div>
+                                <small>@T.Get("Type", l)</small>
+                                <span>@(w.Type == WorkshopType.Online ? T.Get("Online", l) : T.Get("OnSite", l))</span>
+                            </div>
+                        </div>
+                        @if (w.Type == WorkshopType.OnSite)
                         {
-                            <span class="pub-chip"><i class="icon-base ri ri-global-line"></i>@T.Get("Online", l)</span>
+                            var place = new[] { w.Hall?.LocalName(l), w.Hall?.LocalLocation(l), countryName }.Where(x => !string.IsNullOrWhiteSpace(x));
+                            <div class="pub-fact">
+                                <i class="icon-base ri ri-building-line"></i>
+                                <div><small>@T.Get("Location", l)</small><span>@string.Join(isAr ? "، " : ", ", place)</span></div>
+                            </div>
                         }
-                        else
-                        {
-                            <span class="pub-chip"><i class="icon-base ri ri-map-pin-line"></i>@(w.Hall?.Name ?? T.Get("OnSite", l))@(countryName != null ? (isAr ? "، " : ", ") + countryName : "")</span>
-                        }
-                        @if (Model.SeatsLeft.HasValue && Model.State == "form")
-                        {
-                            <span class="pub-chip"><i class="icon-base ri ri-user-line"></i>@T.Get("SeatsLeft", l): @Model.SeatsLeft</span>
-                        }
+                        <div class="pub-fact pub-fee">
+                            <i class="icon-base ri ri-price-tag-3-line"></i>
+                            <div>
+                                <small>@T.Get("Fee", l)</small>
+                                @if (w.IsFree)
+                                {
+                                    <span class="badge bg-label-success">@T.Get("FreeNote", l)</span>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold" dir="auto">@DisplayFormat.Fee(w, l)</span>
+                                }
+                            </div>
+                        </div>
                     </div>
                     @if (Model.State == "form" && (!string.IsNullOrWhiteSpace(wDescription) || !string.IsNullOrWhiteSpace(wContent)))
                     {
-                        <div class="pub-about mt-4" dir="auto">
+                        <div class="pub-about mt-4" dir="@(isAr ? "rtl" : "ltr")">
                             @if (!string.IsNullOrWhiteSpace(wDescription)) { <p class="mb-2 content-pre">@wDescription</p> }
                             @if (!string.IsNullOrWhiteSpace(wContent))
                             {
-                                <details>
+                                <details open>
                                     <summary>@T.Get("About", l)</summary>
-                                    <p class="content-pre small mt-2 mb-0">@wContent</p>
+                                    <div class="rich-text small mt-2">@RichText.ToHtml(wContent)</div>
                                 </details>
                             }
                         </div>
@@ -90,7 +112,7 @@
                             {
                                 <div class="pub-chips justify-content-center">
                                     <span class="pub-chip" dir="auto"><i class="icon-base ri ri-bookmark-line"></i>@wName</span>
-                                    <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@w.StartDateTime.ToString("d MMMM yyyy", culture) · <span dir="ltr">@w.StartDateTime.ToString("HH:mm")</span></span>
+                                    <span class="pub-chip"><i class="icon-base ri ri-calendar-event-line"></i>@DisplayFormat.Dates(w, l) · <span dir="ltr">@DisplayFormat.Hours(w)</span></span>
                                 </div>
                             }
                         </div>

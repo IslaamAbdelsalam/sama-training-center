@@ -3,6 +3,7 @@
     ViewData["Title"] = "Reports";
     var f = Model.Filter;
     var showMoney = (bool)ViewBag.ShowMoney;
+    var showIncome = (bool)ViewBag.ShowIncome;
     var countries = AppOptions.Value.GetCountries();
     var maxMonth = Math.Max(1, Model.RegistrationsByMonth.Count == 0 ? 1 : Model.RegistrationsByMonth.Max(m => m.Count));
     var exportQuery = new Dictionary<string, string?>
@@ -92,7 +93,7 @@
     </div>
 </div>
 
-@if (showMoney && Model.Summaries.Count > 0)
+@if ((showMoney || showIncome) && Model.Summaries.Count > 0)
 {
     <h5 class="mb-3">By currency</h5>
     <div class="row g-6 mb-6">
@@ -106,10 +107,32 @@
                                 <span class="badge bg-label-primary mb-2">@s.Currency</span>
                                 <h6 class="mb-0 text-body-secondary">@s.CountryName</h6>
                             </div>
-                            <div class="text-end">
-                                <div class="small text-body-secondary">Total expenses</div>
-                                <h4 class="mb-0">@MoneyFormat.Format(s.Expenses, s.Currency)</h4>
-                            </div>
+                            @if (showMoney && showIncome)
+                            {
+                                <div class="text-end">
+                                    <div class="small text-body-secondary">Net profit</div>
+                                    <h4 class="mb-0 @(s.NetProfit < 0 ? "text-danger" : "text-success")">@MoneyFormat.Format(s.NetProfit, s.Currency)</h4>
+                                </div>
+                            }
+                            else if (showMoney)
+                            {
+                                <div class="text-end">
+                                    <div class="small text-body-secondary">Total expenses</div>
+                                    <h4 class="mb-0">@MoneyFormat.Format(s.Expenses, s.Currency)</h4>
+                                </div>
+                            }
+                        </div>
+                        <div class="fin-grid mb-4">
+                            @if (showIncome)
+                            {
+                                <div class="fin-tile"><small>Expected income</small><strong>@s.ExpectedIncome.ToString("N2")</strong></div>
+                                <div class="fin-tile"><small>Collected</small><strong class="text-success">@s.Collected.ToString("N2")</strong></div>
+                                <div class="fin-tile"><small>Outstanding</small><strong class="text-warning">@s.Outstanding.ToString("N2")</strong></div>
+                            }
+                            @if (showMoney)
+                            {
+                                <div class="fin-tile"><small>Total expenses</small><strong class="text-danger">@MoneyFormat.Format(s.Expenses, s.Currency)</strong></div>
+                            }
                         </div>
                         <div class="row text-center g-2">
                             <div class="col-4"><div class="report-mini"><strong>@s.Workshops</strong><span>Workshops</span></div></div>
@@ -197,24 +220,34 @@
                 <th>Country</th>
                 <th>Status</th>
                 <th style="min-width: 160px">Seats filled</th>
+                @if (showIncome)
+                {
+                    <th class="text-end">Expected</th>
+                    <th class="text-end">Collected</th>
+                    <th class="text-end">Outstanding</th>
+                }
                 @if (showMoney)
                 {
                     <th class="text-end">Expenses</th>
                     <th class="text-end">Cost / student</th>
+                }
+                @if (showMoney && showIncome)
+                {
+                    <th class="text-end">Net profit</th>
                 }
             </tr>
             </thead>
             <tbody class="table-border-bottom-0">
             @if (Model.Rows.Count == 0)
             {
-                <tr><td colspan="6" class="text-center text-body-secondary py-6">No workshops in this period.</td></tr>
+                <tr><td colspan="10" class="text-center text-body-secondary py-6">No workshops in this period.</td></tr>
             }
             @foreach (var r in Model.Rows)
             {
                 <tr>
                     <td>
                         <a asp-controller="Workshops" asp-action="Details" asp-route-id="@r.Id" class="fw-medium">@r.Name</a>
-                        <small class="d-block text-body-secondary">@r.StartDateTime.ToString("dd MMM yyyy") · @(r.Type == WorkshopType.Online ? "Online" : "On-site")</small>
+                        <small class="d-block text-body-secondary">@DisplayFormat.ShortDates(r.StartDateTime, r.EndDateTime) · @(r.Type == WorkshopType.Online ? "Online" : "On-site") · @(r.Fee is > 0 ? MoneyFormat.Format(r.Fee.Value, r.Currency) : "Free")</small>
                     </td>
                     <td>@r.CountryName</td>
                     <td><partial name="_StatusBadge" model="r.Status" /></td>
@@ -233,10 +266,20 @@
                             <small>@r.Registrations students</small>
                         }
                     </td>
+                    @if (showIncome)
+                    {
+                        <td class="text-end text-nowrap">@MoneyFormat.Format(r.ExpectedIncome, r.Currency)</td>
+                        <td class="text-end text-nowrap text-success">@MoneyFormat.Format(r.Collected, r.Currency)</td>
+                        <td class="text-end text-nowrap">@MoneyFormat.Format(r.Outstanding, r.Currency)</td>
+                    }
                     @if (showMoney)
                     {
                         <td class="text-end text-nowrap">@MoneyFormat.Format(r.Expenses, r.Currency)</td>
                         <td class="text-end text-nowrap">@(r.CostPerStudent.HasValue ? MoneyFormat.Format(r.CostPerStudent.Value, r.Currency) : "—")</td>
+                    }
+                    @if (showMoney && showIncome)
+                    {
+                        <td class="text-end text-nowrap fw-medium @(r.NetProfit < 0 ? "text-danger" : "")">@MoneyFormat.Format(r.NetProfit, r.Currency)</td>
                     }
                 </tr>
             }

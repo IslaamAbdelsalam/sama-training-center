@@ -34,6 +34,40 @@ public enum WorkshopStatus
     Completed = 3
 }
 
+/// <summary>What a workshop history entry records (US-07, US-10).</summary>
+public enum WorkshopHistoryAction
+{
+    StatusChanged = 0,
+    RegistrationOpened = 1,
+    RegistrationClosed = 2,
+    LinkRegenerated = 3
+}
+
+/// <summary>How a registration fee was paid (US-18).</summary>
+public enum PaymentMethod
+{
+    [Display(Name = "Cash")]
+    Cash = 1,
+
+    [Display(Name = "Bank transfer")]
+    BankTransfer = 2,
+
+    [Display(Name = "Mobile wallet")]
+    MobileWallet = 3,
+
+    [Display(Name = "Other")]
+    Other = 4
+}
+
+/// <summary>A registration's payment position, calculated from the fee and its collections (US-18).</summary>
+public enum PaymentStatus
+{
+    Free,
+    Unpaid,
+    PartiallyPaid,
+    Paid
+}
+
 /// <summary>Lookup: expense categories (US-01).</summary>
 public class ExpenseCategory
 {
@@ -42,10 +76,16 @@ public class ExpenseCategory
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Arabic name (US-03), shown when Arabic is selected.</summary>
+    [MaxLength(100)]
+    public string? NameAr { get; set; }
+
     [MaxLength(250)]
     public string? Description { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public string LocalName(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(NameAr) ? NameAr! : Name;
 
     public ICollection<WorkshopExpense> Expenses { get; set; } = new List<WorkshopExpense>();
 }
@@ -58,10 +98,22 @@ public class Hall
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Arabic name (US-03), shown on the Arabic registration page.</summary>
+    [MaxLength(100)]
+    public string? NameAr { get; set; }
+
     [MaxLength(250)]
     public string? Location { get; set; }
 
+    /// <summary>Arabic location / address (US-03, US-12).</summary>
+    [MaxLength(250)]
+    public string? LocationAr { get; set; }
+
     public int? Capacity { get; set; }
+
+    public string LocalName(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(NameAr) ? NameAr! : Name;
+
+    public string? LocalLocation(string lang) => lang == "ar" && !string.IsNullOrWhiteSpace(LocationAr) ? LocationAr : Location;
 
     public bool IsActive { get; set; } = true;
 
@@ -120,6 +172,17 @@ public class Workshop
     /// <summary>Optional maximum number of registrations.</summary>
     public int? Capacity { get; set; }
 
+    /// <summary>Registration fee per participant in the workshop's currency (US-06). Empty or 0 = free.</summary>
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? Fee { get; set; }
+
+    public bool IsFree => Fee is null or <= 0;
+
+    /// <summary>US-05: a workshop runs on one day or over a date range (same daily hours).</summary>
+    public bool IsMultiDay => EndDateTime.Date > StartDateTime.Date;
+
+    public int Days => (EndDateTime.Date - StartDateTime.Date).Days + 1;
+
     public WorkshopStatus Status { get; set; } = WorkshopStatus.Pending;
 
     public bool RegistrationOpen { get; set; }
@@ -139,15 +202,18 @@ public class Workshop
     public ICollection<Registration> Registrations { get; set; } = new List<Registration>();
     public ICollection<WorkshopExpense> Expenses { get; set; } = new List<WorkshopExpense>();
     public ICollection<WorkshopStatusHistory> StatusHistory { get; set; } = new List<WorkshopStatusHistory>();
+    public ICollection<FeeCollection> Collections { get; set; } = new List<FeeCollection>();
 }
 
-/// <summary>Audit trail of status changes (US-08).</summary>
+/// <summary>Audit trail: status changes (US-10) and registration opening/closing (US-07).</summary>
 public class WorkshopStatusHistory
 {
     public int Id { get; set; }
 
     public int WorkshopId { get; set; }
     public Workshop? Workshop { get; set; }
+
+    public WorkshopHistoryAction Action { get; set; } = WorkshopHistoryAction.StatusChanged;
 
     public WorkshopStatus FromStatus { get; set; }
     public WorkshopStatus ToStatus { get; set; }
@@ -184,6 +250,45 @@ public class Registration
     public string Language { get; set; } = "en";
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<FeeCollection> Collections { get; set; } = new List<FeeCollection>();
+}
+
+/// <summary>A registration fee payment received from a participant (US-18).</summary>
+public class FeeCollection
+{
+    public int Id { get; set; }
+
+    public int WorkshopId { get; set; }
+    public Workshop? Workshop { get; set; }
+
+    public int RegistrationId { get; set; }
+    public Registration? Registration { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Amount { get; set; }
+
+    /// <summary>Always the workshop's currency at the time of collection.</summary>
+    [Required, MaxLength(3)]
+    public string CurrencyCode { get; set; } = string.Empty;
+
+    public DateTime CollectedOn { get; set; }
+
+    public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
+
+    [MaxLength(100)]
+    public string? Reference { get; set; }
+
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
+    [MaxLength(256)]
+    public string? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [MaxLength(256)]
+    public string? UpdatedBy { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public class WorkshopExpense

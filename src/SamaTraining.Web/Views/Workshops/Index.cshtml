@@ -88,7 +88,7 @@
             {
                 <tr>
                     <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a></td>
-                    <td class="text-nowrap">@w.StartDateTime.ToString("dd MMM yyyy")<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")</small></td>
+                    <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime)<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")@(w.EndDateTime.Date > w.StartDateTime.Date ? " daily" : "")</small></td>
                     <td>
                         @if (w.Type == WorkshopType.Online)
                         {

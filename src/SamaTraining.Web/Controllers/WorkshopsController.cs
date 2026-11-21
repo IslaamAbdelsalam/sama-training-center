@@ -15,12 +15,14 @@ public class WorkshopsController : AppController
     private readonly ApplicationDbContext _db;
     private readonly WorkshopService _service;
     private readonly AppSettings _settings;
+    private readonly FinanceService _finance;
 
-    public WorkshopsController(ApplicationDbContext db, WorkshopService service, IOptions<AppSettings> settings)
+    public WorkshopsController(ApplicationDbContext db, WorkshopService service, IOptions<AppSettings> settings, FinanceService finance)
     {
         _db = db;
         _service = service;
         _settings = settings.Value;
+        _finance = finance;
     }
 
     // US-06: search and filter
@@ -32,7 +34,7 @@ public class WorkshopsController : AppController
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var s = filter.Search.Trim();
-            query = query.Where(w => w.Name.Contains(s));
+            query = query.Where(w => w.Name.Contains(s) || (w.NameAr != null && w.NameAr.Contains(s)));
         }
 
         if (filter.Status.HasValue) query = query.Where(w => w.Status == filter.Status);
@@ -78,7 +80,9 @@ public class WorkshopsController : AppController
             CanEdit = WorkshopService.CanEdit(workshop),
             CanDelete = await _service.CanDeleteAsync(workshop),
             CanAddExpense = WorkshopService.CanAddExpense(workshop),
+            CanCollect = WorkshopService.CanCollect(workshop),
             NextStatus = WorkshopService.NextStatus(workshop.Status),
+            PreviousStatus = WorkshopService.PreviousStatus(workshop.Status),
             RegistrationCount = await _service.CountRegistrationsAsync(workshop.Id),
             History = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == id).OrderBy(h => h.ChangedAt).ToListAsync()
         };
@@ -109,6 +113,16 @@ public class WorkshopsController : AppController
             model.TotalExpenses = model.Expenses.Sum(e => e.Amount);
         }
 
+        if (User.Can(Permissions.CollectionsView))
+        {
+            model.Collections = await _db.FeeCollections.Include(c => c.Registration)
+                .Where(c => c.WorkshopId == id).OrderByDescending(c => c.CollectedOn).ThenByDescending(c => c.Id).ToListAsync();
+            model.PaidByRegistration = model.Collections.GroupBy(c => c.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(c => c.Amount));
+        }
+
+        // US-19: the same figures as the dashboard and reports.
+        model.Finance = (await _finance.ForWorkshopsAsync(new[] { id })).GetValueOrDefault(id) ?? new FinancialSummary { Currency = workshop.CurrencyCode };
+
         return View(model);
     }
 
@@ -124,6 +138,7 @@ public class WorkshopsController : AppController
             Type = WorkshopType.OnSite,
             Country = _settings.GetCountries().FirstOrDefault()?.Code
         };
+        model.EndDate = model.Date;
         await LoadHallsAsync(model, null);
         return View("Form", model);
     }
@@ -145,6 +160,9 @@ public class WorkshopsController : AppController
             Id = w.Id,
             Name = w.Name,
             Date = w.StartDateTime.Date,
+            IsMultiDay = w.IsMultiDay,
+            EndDate = w.EndDateTime.Date,
+            Fee = w.Fee,
             StartTime = w.StartDateTime.TimeOfDay,
             EndTime = w.EndDateTime.TimeOfDay,
             Type = w.Type,
@@ -156,8 +174,8 @@ public class WorkshopsController : AppController
             NameAr = w.NameAr,
             Description = w.Description,
             DescriptionAr = w.DescriptionAr,
-            Content = w.Content,
-            ContentAr = w.ContentAr
+            Content = RichText.ForEditor(w.Content),
+            ContentAr = RichText.ForEditor(w.ContentAr)
         };
         await LoadHallsAsync(model, w.HallId);
         return View("Form", model);
@@ -167,6 +185,19 @@ public class WorkshopsController : AppController
     public async Task<IActionResult> Save(WorkshopFormModel model)
     {
         // Cross-field rules, checked here so they show together with any missing-field errors.
+        // US-05: single day, or a date range whose end date is not before the start date.
+        if (model.IsMultiDay)
+        {
+            if (model.EndDate == null)
+            {
+                ModelState.AddModelError(nameof(model.EndDate), "Choose the end date of the workshop.");
+            }
+            else if (model.Date.HasValue && model.EndDate.Value.Date < model.Date.Value.Date)
+            {
+                ModelState.AddModelError(nameof(model.EndDate), "The end date can't be earlier than the start date.");
+            }
+        }
+
         if (model.StartTime.HasValue && model.EndTime.HasValue && model.EndTime <= model.StartTime)
         {
             ModelState.AddModelError(nameof(model.EndTime), "End time must be after the start time.");
@@ -228,10 +259,12 @@ public class WorkshopsController : AppController
         }
 
         var date = model.Date!.Value.Date;
+        var endDate = model.IsMultiDay && model.EndDate.HasValue ? model.EndDate.Value.Date : date;
         w.Name = model.Name.Trim();
         w.NameAr = model.NameAr?.Trim();
         w.StartDateTime = date + model.StartTime!.Value;
-        w.EndDateTime = date + model.EndTime!.Value;
+        w.EndDateTime = endDate + model.EndTime!.Value;
+        w.Fee = model.Fee is > 0 ? Math.Round(model.Fee.Value, 2) : null;
         w.Type = model.Type!.Value;
         w.Country = country!.Code;
         w.CurrencyCode = country.Currency;
@@ -240,8 +273,9 @@ public class WorkshopsController : AppController
         w.Capacity = model.Capacity;
         w.Description = model.Description;
         w.DescriptionAr = model.DescriptionAr;
-        w.Content = model.Content;
-        w.ContentAr = model.ContentAr;
+        // US-04: keep the agenda's formatting, without anything unsafe.
+        w.Content = RichText.Clean(model.Content);
+        w.ContentAr = RichText.Clean(model.ContentAr);
 
         var isNew = model.Id == 0;
         await _db.SaveChangesAsync();
@@ -269,18 +303,28 @@ public class WorkshopsController : AppController
         return RedirectToAction(nameof(Index));
     }
 
-    // US-08
+    // Status forward (Pending → Ongoing → Completed)
     [HttpPost, HasPermission(Permissions.WorkshopsChangeStatus)]
     public async Task<IActionResult> AdvanceStatus(int id, WorkshopStatus target)
     {
-        var result = await _service.AdvanceStatusAsync(id, target, CurrentUserName);
+        var result = await _service.ChangeStatusAsync(id, target, CurrentUserName, allowReverse: false);
         if (result.Success)
         {
-            if (target == WorkshopStatus.Ongoing) Success("Workshop started", "Status is now Ongoing. You can record expenses.");
-            else Success("Workshop completed", "Registration is closed and the workshop is now read-only.");
+            if (target == WorkshopStatus.Ongoing) Success("Workshop started", "Status is now Ongoing.");
+            else Success("Workshop completed", "Registration is closed. Expenses and collections are now finalised.");
         }
         else Error("Status not changed", result.Error);
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectToAction(nameof(Details), new { id, tab = "history" });
+    }
+
+    // US-10: reverse a mistaken status change (Ongoing → Pending, Completed → Ongoing)
+    [HttpPost, HasPermission(Permissions.WorkshopsReverseStatus)]
+    public async Task<IActionResult> ReverseStatus(int id, WorkshopStatus target)
+    {
+        var result = await _service.ChangeStatusAsync(id, target, CurrentUserName, allowReverse: true);
+        if (result.Success) Success("Status reversed", $"The workshop is back to {target}. The change is recorded in History.");
+        else Error("Status not changed", result.Error);
+        return RedirectToAction(nameof(Details), new { id, tab = "history" });
     }
 
     // US-09 / US-10
@@ -320,12 +364,24 @@ public class WorkshopsController : AppController
 
         var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.RegisteredAt).ToListAsync();
         var sb = new StringBuilder();
-        sb.AppendLine("Full name,Email,Phone,Organization,Notes,Language,Registered at (UTC)");
+        var showMoney = User.Can(Permissions.CollectionsView) && !w.IsFree;
+        var paid = showMoney
+            ? (await _db.FeeCollections.Where(c => c.WorkshopId == id).Select(c => new { c.RegistrationId, c.Amount }).ToListAsync())
+                .GroupBy(c => c.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(c => c.Amount))
+            : new Dictionary<int, decimal>();
+        sb.Append("Full name,Email,Phone,Organization,Notes,Language,Registered at (UTC)");
+        sb.AppendLine(showMoney ? $",Fee ({w.CurrencyCode}),Paid ({w.CurrencyCode}),Outstanding ({w.CurrencyCode}),Payment status" : "");
         var phoneFormat = HttpContext.RequestServices.GetRequiredService<PhoneNumberService>();
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(phoneFormat.Format(r.Phone)), Csv(r.Organization),
+            sb.Append(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(phoneFormat.Format(r.Phone)), Csv(r.Organization),
                 Csv(r.Notes), r.Language, r.RegisteredAt.ToString("yyyy-MM-dd HH:mm")));
+            if (showMoney)
+            {
+                var p = paid.GetValueOrDefault(r.Id);
+                sb.Append($",{w.Fee:0.00},{p:0.00},{(w.Fee ?? 0) - p:0.00},{DisplayFormat.Label(FinanceService.StatusOf(w.Fee, p))}");
+            }
+            sb.AppendLine();
         }
 
         // UTF-8 with BOM so Excel shows Arabic names correctly.

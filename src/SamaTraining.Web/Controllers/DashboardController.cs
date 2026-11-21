@@ -14,11 +14,13 @@ public class DashboardController : AppController
 {
     private readonly ApplicationDbContext _db;
     private readonly AppSettings _settings;
+    private readonly FinanceService _finance;
 
-    public DashboardController(ApplicationDbContext db, IOptions<AppSettings> settings)
+    public DashboardController(ApplicationDbContext db, IOptions<AppSettings> settings, FinanceService finance)
     {
         _db = db;
         _settings = settings.Value;
+        _finance = finance;
     }
 
     public async Task<IActionResult> Index()
@@ -45,6 +47,7 @@ public class DashboardController : AppController
             OpenRegistrations = await _db.Workshops.CountAsync(w => w.RegistrationOpen),
             TotalRegistrations = await _db.Registrations.CountAsync(),
             ShowExpenses = User.Can(Permissions.ExpensesView),
+            ShowIncome = User.Can(Permissions.CollectionsView),
             Upcoming = await _db.Workshops
                 .Include(w => w.Hall)
                 .Where(w => w.Status != WorkshopStatus.Completed && w.EndDateTime >= today)
@@ -67,6 +70,7 @@ public class DashboardController : AppController
             .ToListAsync();
 
         var monthStart = new DateTime(today.Year, today.Month, 1);
+        var financeByCurrency = FinanceService.ByCurrency((await _finance.ForWorkshopsAsync()).Values).ToDictionary(f => f.Currency);
 
         // Every configured currency gets a block (even with no data yet), plus any other currency found in the data.
         var currencies = _settings.GetCountries()
@@ -96,7 +100,8 @@ public class DashboardController : AppController
                 TotalExpenses = ex.Sum(e => e.Amount),
                 ExpensesThisMonth = ex.Where(e => e.ExpenseDate >= monthStart).Sum(e => e.Amount),
                 TopCategory = top?.Category,
-                TopCategoryAmount = top?.Amount ?? 0
+                TopCategoryAmount = top?.Amount ?? 0,
+                Finance = financeByCurrency.GetValueOrDefault(currency) ?? new FinancialSummary { Currency = currency }
             });
         }
 

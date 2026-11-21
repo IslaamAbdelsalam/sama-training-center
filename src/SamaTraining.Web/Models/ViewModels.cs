@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SamaTraining.Web.Data;
+using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Models;
 
@@ -36,6 +37,29 @@ public class ChangePasswordViewModel
     public bool IsFirstLogin { get; set; }
 }
 
+public class ForgotPasswordViewModel
+{
+    [Required(ErrorMessage = "Enter your username or email."), Display(Name = "Username or email")]
+    public string UserNameOrEmail { get; set; } = string.Empty;
+}
+
+public class SetNewPasswordViewModel
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "New password")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "The password must be at least 8 characters.")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "Confirm new password")]
+    [Compare(nameof(NewPassword), ErrorMessage = "The passwords do not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
 // ---------- Dashboard ----------
 
 public class DashboardViewModel
@@ -47,6 +71,9 @@ public class DashboardViewModel
     public int TotalRegistrations { get; set; }
 
     public bool ShowExpenses { get; set; }
+
+    /// <summary>US-19: income, collections and profit (needs the Collections.View permission).</summary>
+    public bool ShowIncome { get; set; }
 
     /// <summary>One block per currency (SDG, EGP). Amounts are never converted or added across currencies.</summary>
     public List<DashboardCurrencySummary> Currencies { get; set; } = new();
@@ -71,6 +98,9 @@ public class DashboardCurrencySummary
     public string? TopCategory { get; set; }
     public decimal TopCategoryAmount { get; set; }
 
+    /// <summary>US-19: expected income, collected, outstanding and net profit in this currency.</summary>
+    public FinancialSummary Finance { get; set; } = new();
+
     /// <summary>Total expenses ÷ students, in this currency.</summary>
     public decimal? CostPerStudent => Students > 0 ? Math.Round(TotalExpenses / Students, 2) : null;
 }
@@ -81,11 +111,17 @@ public class ExpenseCategoryFormModel
 {
     public int Id { get; set; }
 
-    [Required, StringLength(100), Display(Name = "Category name")]
+    [Required, StringLength(100), Display(Name = "Name (English)")]
     public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Enter the Arabic name. It is shown when Arabic is selected."), StringLength(100), Display(Name = "الاسم (Arabic)")]
+    public string? NameAr { get; set; }
 
     [StringLength(250)]
     public string? Description { get; set; }
+
+    /// <summary>Number of expenses using this category; when above zero it can't be deleted (US-01).</summary>
+    public int UsedBy { get; set; }
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
@@ -95,11 +131,20 @@ public class HallFormModel
 {
     public int Id { get; set; }
 
-    [Required, StringLength(100), Display(Name = "Hall name")]
+    [Required, StringLength(100), Display(Name = "Hall name (English)")]
     public string Name { get; set; } = string.Empty;
 
-    [StringLength(250)]
+    [Required(ErrorMessage = "Enter the Arabic name. It is shown on the Arabic registration page."), StringLength(100), Display(Name = "اسم القاعة (Arabic)")]
+    public string? NameAr { get; set; }
+
+    [StringLength(250), Display(Name = "Location / address (English)")]
     public string? Location { get; set; }
+
+    [StringLength(250), Display(Name = "الموقع / العنوان (Arabic)")]
+    public string? LocationAr { get; set; }
+
+    /// <summary>Number of workshops using this hall; when above zero it can't be deleted (US-01).</summary>
+    public int UsedBy { get; set; }
 
     [Range(1, 100000)]
     public int? Capacity { get; set; }
@@ -154,8 +199,17 @@ public class WorkshopFormModel
     [Required(ErrorMessage = "Enter the Arabic name. It is shown on the Arabic registration page."), StringLength(200), Display(Name = "اسم الورشة (Arabic)")]
     public string? NameAr { get; set; }
 
-    [Required, DataType(DataType.Date), Display(Name = "Date")]
+    /// <summary>US-05: false = single day, true = date range.</summary>
+    [Display(Name = "Schedule")]
+    public bool IsMultiDay { get; set; }
+
+    /// <summary>The workshop date (single day) or the start date (date range).</summary>
+    [Required(ErrorMessage = "Choose the workshop date."), DataType(DataType.Date), Display(Name = "Date")]
     public DateTime? Date { get; set; }
+
+    /// <summary>US-05: end date of a date-range workshop.</summary>
+    [DataType(DataType.Date), Display(Name = "End date")]
+    public DateTime? EndDate { get; set; }
 
     [Required, DataType(DataType.Time), Display(Name = "Start time")]
     public TimeSpan? StartTime { get; set; }
@@ -181,6 +235,10 @@ public class WorkshopFormModel
     [Range(1, 100000), Display(Name = "Capacity (optional)")]
     public int? Capacity { get; set; }
 
+    /// <summary>US-06: registration fee in the workshop's currency. Empty or 0 = free.</summary>
+    [Range(typeof(decimal), "0", "999999999", ErrorMessage = "The fee can't be negative."), Display(Name = "Registration fee")]
+    public decimal? Fee { get; set; }
+
     [StringLength(1000), Display(Name = "Short description (English)")]
     public string? Description { get; set; }
 
@@ -205,7 +263,18 @@ public class WorkshopDetailsViewModel
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
     public bool CanAddExpense { get; set; }
+    public bool CanCollect { get; set; }
     public WorkshopStatus? NextStatus { get; set; }
+
+    /// <summary>US-10: the status a mistaken change can be reversed to.</summary>
+    public WorkshopStatus? PreviousStatus { get; set; }
+
+    /// <summary>US-18 / US-19: fee collections and the workshop's money summary.</summary>
+    public List<FeeCollection> Collections { get; set; } = new();
+    public FinancialSummary Finance { get; set; } = new();
+
+    /// <summary>Total collected per registration id.</summary>
+    public Dictionary<int, decimal> PaidByRegistration { get; set; } = new();
     public List<WorkshopExpense> Expenses { get; set; } = new();
     public List<Registration> Registrations { get; set; } = new();
 
@@ -239,6 +308,37 @@ public class ExpenseFormModel
     public IEnumerable<SelectListItem> Categories { get; set; } = Enumerable.Empty<SelectListItem>();
 }
 
+// ---------- Fee collections (US-18) ----------
+
+public class CollectionFormModel
+{
+    public int Id { get; set; }
+    public int WorkshopId { get; set; }
+    public string? WorkshopName { get; set; }
+    public string? CurrencyCode { get; set; }
+    public decimal Fee { get; set; }
+
+    [Required(ErrorMessage = "Choose the participant who paid."), Display(Name = "Participant")]
+    public int? RegistrationId { get; set; }
+
+    [Required, Range(typeof(decimal), "0.01", "999999999", ErrorMessage = "Amount must be greater than zero.")]
+    public decimal? Amount { get; set; }
+
+    [Required, DataType(DataType.Date), Display(Name = "Payment date")]
+    public DateTime? CollectedOn { get; set; }
+
+    [Required, Display(Name = "Payment method")]
+    public PaymentMethod? Method { get; set; } = PaymentMethod.Cash;
+
+    [StringLength(100), Display(Name = "Receipt / reference no. (optional)")]
+    public string? Reference { get; set; }
+
+    [StringLength(500), Display(Name = "Notes (optional)")]
+    public string? Notes { get; set; }
+
+    public IEnumerable<SelectListItem> Participants { get; set; } = Enumerable.Empty<SelectListItem>();
+}
+
 // ---------- Public registration ----------
 
 public class PublicRegistrationViewModel
@@ -246,7 +346,6 @@ public class PublicRegistrationViewModel
     public string Token { get; set; } = string.Empty;
     public string Lang { get; set; } = "en";
     public Workshop? Workshop { get; set; }
-    public int? SeatsLeft { get; set; }
 
     /// <summary>form | success | closed | full | notfound</summary>
     public string State { get; set; } = "form";

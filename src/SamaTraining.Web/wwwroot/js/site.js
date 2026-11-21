@@ -122,11 +122,60 @@
   if (countrySelect && currencyHint) {
     var syncCurrency = function () {
       var opt = countrySelect.options[countrySelect.selectedIndex];
-      currencyHint.textContent = opt && opt.dataset.currency ? opt.dataset.currency : '—';
+      var cur = opt && opt.dataset.currency ? opt.dataset.currency : '—';
+      currencyHint.textContent = cur;
+      document.querySelectorAll('[data-currency-label]').forEach(function (el) { el.textContent = cur; });
     };
     countrySelect.addEventListener('change', syncCurrency);
     syncCurrency();
   }
+  // ---- Workshop schedule (US-05): single day or date range ----
+  var multi = document.querySelectorAll('input[name="IsMultiDay"]');
+  if (multi.length && document.getElementById('end-date-group')) {
+    var syncSchedule = function () {
+      var range = document.querySelector('input[name="IsMultiDay"]:checked');
+      var isRange = range && range.value === 'true';
+      document.getElementById('end-date-group').classList.toggle('d-none', !isRange);
+      var lbl = document.getElementById('start-date-label');
+      if (lbl) lbl.textContent = isRange ? 'Start date' : 'Date';
+      var start = document.getElementById('Date'), end = document.getElementById('EndDate');
+      if (start && end) {
+        end.min = start.value || '';
+        if (isRange && start.value && (!end.value || end.value < start.value)) end.value = start.value;
+      }
+    };
+    multi.forEach(function (r) { r.addEventListener('change', syncSchedule); });
+    var startInput = document.getElementById('Date');
+    if (startInput) startInput.addEventListener('change', syncSchedule);
+    syncSchedule();
+  }
+
+  // ---- Rich-text agenda editors (US-04): <div data-rich-editor="TextareaId" dir="ltr|rtl"> ----
+  if (window.Quill) {
+    var toolbar = [
+      [{ header: [2, 3, 4, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ color: [] }, { background: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+      [{ align: [] }, { direction: 'rtl' }],
+      ['blockquote', 'link', 'clean']
+    ];
+    document.querySelectorAll('[data-rich-editor]').forEach(function (host) {
+      var field = document.getElementById(host.getAttribute('data-rich-editor'));
+      if (!field) return;
+      var rtl = host.getAttribute('dir') === 'rtl';
+      var q = new Quill(host, { theme: 'snow', modules: { toolbar: toolbar }, placeholder: host.getAttribute('data-placeholder') || '' });
+      if (field.value) q.clipboard.dangerouslyPasteHTML(field.value);
+      if (rtl && !field.value) { q.format('direction', 'rtl'); q.format('align', 'right'); }
+      var save = function () {
+        var html = q.root.innerHTML;
+        field.value = q.getText().trim().length === 0 && html.indexOf('<hr') < 0 ? '' : html;
+      };
+      q.on('text-change', save);
+      if (field.form) field.form.addEventListener('submit', save);
+    });
+  }
+
   // ---- Registration phone: fixed "00" prefix, digits only, live check of country code + length ----
   var phone = document.getElementById('Phone');
   var help = document.getElementById('phone-help');

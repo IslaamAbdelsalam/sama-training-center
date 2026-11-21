@@ -93,6 +93,13 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<WorkshopService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<FinanceService>();
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.Section));
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
+// US-11: password reset links expire after this many minutes (default 60).
+builder.Services.Configure<DataProtectionTokenProviderOptions>(o =>
+    o.TokenLifespan = TimeSpan.FromMinutes(builder.Configuration.GetValue("App:PasswordResetMinutes", 60)));
 builder.Services.AddSingleton<PublicText>();
 builder.Services.AddSingleton<PhoneNumberService>();
 

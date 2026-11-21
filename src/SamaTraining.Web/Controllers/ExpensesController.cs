@@ -8,7 +8,8 @@ using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Controllers;
 
-/// <summary>US-14..US-16: workshop expenses, always in the workshop's currency.</summary>
+/// <summary>US-08 / US-09 / US-17: workshop expenses, always in the workshop's currency.
+/// They can be managed from creation (before the workshop starts) until it is completed.</summary>
 [HasPermission(Permissions.ExpensesManage)]
 public class ExpensesController : AppController
 {
@@ -20,11 +21,7 @@ public class ExpensesController : AppController
     {
         var w = await _db.Workshops.FindAsync(workshopId);
         if (w == null) return NotFound();
-        if (!WorkshopService.CanAddExpense(w))
-        {
-            Info("Start the workshop first", "Expenses can be added once the workshop status is Ongoing.");
-            return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
-        }
+        if (!WorkshopService.CanAddExpense(w)) return Finalised(w.Id);
 
         var model = new ExpenseFormModel { WorkshopId = w.Id, WorkshopName = w.Name, CurrencyCode = w.CurrencyCode, ExpenseDate = DateTime.Today };
         await LoadCategoriesAsync(model, null);
@@ -35,6 +32,7 @@ public class ExpensesController : AppController
     {
         var e = await _db.WorkshopExpenses.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
+        if (!WorkshopService.CanAddExpense(e.Workshop!)) return Finalised(e.WorkshopId);
 
         var model = new ExpenseFormModel
         {
@@ -60,11 +58,7 @@ public class ExpensesController : AppController
         model.WorkshopName = w.Name;
         model.CurrencyCode = w.CurrencyCode;
 
-        if (!WorkshopService.CanAddExpense(w))
-        {
-            Info("Start the workshop first", "Expenses can be recorded once the workshop status is Ongoing.");
-            return RedirectToAction("Details", "Workshops", new { id = w.Id, tab = "expenses" });
-        }
+        if (!WorkshopService.CanAddExpense(w)) return Finalised(w.Id);
 
         if (model.ExpenseCategoryId.HasValue)
         {
@@ -121,6 +115,7 @@ public class ExpensesController : AppController
     {
         var e = await _db.WorkshopExpenses.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
+        if (!WorkshopService.CanAddExpense(e.Workshop!)) return Finalised(e.WorkshopId);
 
         var workshopId = e.WorkshopId;
         var amount = MoneyFormat.Format(e.Amount, e.Workshop?.CurrencyCode);
@@ -130,12 +125,19 @@ public class ExpensesController : AppController
         return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
     }
 
+    /// <summary>US-09: a completed workshop's expenses are final; they stay visible but can't change.</summary>
+    private IActionResult Finalised(int workshopId)
+    {
+        Error("Workshop is completed", "Expenses can't be added or changed after a workshop is completed. Existing expenses remain visible.");
+        return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
+    }
+
     private async Task LoadCategoriesAsync(ExpenseFormModel model, int? currentId)
     {
         model.Categories = await _db.ExpenseCategories
             .Where(c => c.IsActive || c.Id == currentId)
             .OrderBy(c => c.Name)
-            .Select(c => new SelectListItem(c.Name, c.Id.ToString()))
+            .Select(c => new SelectListItem(c.NameAr != null && c.NameAr != "" ? c.Name + " — " + c.NameAr : c.Name, c.Id.ToString()))
             .ToListAsync();
     }
 }

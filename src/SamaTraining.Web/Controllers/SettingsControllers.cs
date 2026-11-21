@@ -31,7 +31,11 @@ public class ExpenseCategoriesController : AppController
     {
         var c = await _db.ExpenseCategories.FindAsync(id);
         if (c == null) return NotFound();
-        return View("Form", new ExpenseCategoryFormModel { Id = c.Id, Name = c.Name, Description = c.Description, IsActive = c.IsActive });
+        return View("Form", new ExpenseCategoryFormModel
+        {
+            Id = c.Id, Name = c.Name, NameAr = c.NameAr, Description = c.Description, IsActive = c.IsActive,
+            UsedBy = await _db.WorkshopExpenses.CountAsync(e => e.ExpenseCategoryId == id)
+        });
     }
 
     [HttpPost]
@@ -43,7 +47,11 @@ public class ExpenseCategoriesController : AppController
             ModelState.AddModelError(nameof(model.Name), "A category with this name already exists.");
         }
 
-        if (!ModelState.IsValid) return View("Form", model);
+        if (!ModelState.IsValid)
+        {
+            model.UsedBy = model.Id == 0 ? 0 : await _db.WorkshopExpenses.CountAsync(e => e.ExpenseCategoryId == model.Id);
+            return View("Form", model);
+        }
 
         ExpenseCategory? entity;
         if (model.Id == 0)
@@ -58,6 +66,7 @@ public class ExpenseCategoriesController : AppController
         }
 
         entity.Name = model.Name;
+        entity.NameAr = model.NameAr?.Trim();
         entity.Description = model.Description;
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
@@ -68,15 +77,16 @@ public class ExpenseCategoriesController : AppController
     }
 
     [HttpPost]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, bool fromEdit = false)
     {
         var c = await _db.ExpenseCategories.FindAsync(id);
         if (c == null) return NotFound();
 
+        // US-01: a category used by any expense can't be deleted.
         if (await _db.WorkshopExpenses.AnyAsync(e => e.ExpenseCategoryId == id))
         {
-            Error("Category can't be deleted", $"\"{c.Name}\" is used by existing expenses. Edit it and switch it to inactive instead.");
-            return RedirectToAction(nameof(Index));
+            Error("Category can't be deleted", $"\"{c.Name}\" is used by existing expenses. Switch it to inactive instead.");
+            return fromEdit ? RedirectToAction(nameof(Edit), new { id }) : RedirectToAction(nameof(Index));
         }
 
         _db.ExpenseCategories.Remove(c);
@@ -111,7 +121,12 @@ public class HallsController : AppController
     {
         var h = await _db.Halls.FindAsync(id);
         if (h == null) return NotFound();
-        return View("Form", new HallFormModel { Id = h.Id, Name = h.Name, Location = h.Location, Capacity = h.Capacity, IsActive = h.IsActive });
+        return View("Form", new HallFormModel
+        {
+            Id = h.Id, Name = h.Name, NameAr = h.NameAr, Location = h.Location, LocationAr = h.LocationAr,
+            Capacity = h.Capacity, IsActive = h.IsActive,
+            UsedBy = await _db.Workshops.CountAsync(w => w.HallId == id)
+        });
     }
 
     [HttpPost]
@@ -123,7 +138,11 @@ public class HallsController : AppController
             ModelState.AddModelError(nameof(model.Name), "A hall with this name already exists.");
         }
 
-        if (!ModelState.IsValid) return View("Form", model);
+        if (!ModelState.IsValid)
+        {
+            model.UsedBy = model.Id == 0 ? 0 : await _db.Workshops.CountAsync(w => w.HallId == model.Id);
+            return View("Form", model);
+        }
 
         Hall? entity;
         if (model.Id == 0)
@@ -138,7 +157,9 @@ public class HallsController : AppController
         }
 
         entity.Name = model.Name;
+        entity.NameAr = model.NameAr?.Trim();
         entity.Location = model.Location;
+        entity.LocationAr = model.LocationAr?.Trim();
         entity.Capacity = model.Capacity;
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
@@ -149,15 +170,16 @@ public class HallsController : AppController
     }
 
     [HttpPost]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, bool fromEdit = false)
     {
         var h = await _db.Halls.FindAsync(id);
         if (h == null) return NotFound();
 
+        // US-01: a hall or location used by any workshop can't be deleted.
         if (await _db.Workshops.AnyAsync(w => w.HallId == id))
         {
-            Error("Hall can't be deleted", $"\"{h.Name}\" is used by existing workshops. Edit it and switch it to inactive instead.");
-            return RedirectToAction(nameof(Index));
+            Error("Hall can't be deleted", $"\"{h.Name}\" is used by existing workshops. Switch it to inactive instead.");
+            return fromEdit ? RedirectToAction(nameof(Edit), new { id }) : RedirectToAction(nameof(Index));
         }
 
         _db.Halls.Remove(h);

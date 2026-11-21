@@ -8,9 +8,14 @@
     var highlight = TempData["Highlight"] as string;
     var canSeeStudents = User.Can(Permissions.RegistrationsView);
     var canSeeExpenses = User.Can(Permissions.ExpensesView);
+    var canSeeMoney = User.Can(Permissions.CollectionsView);
+    var canCollect = User.Can(Permissions.CollectionsManage) && Model.CanCollect;
+    var showPayments = canSeeMoney && !w.IsFree;
+    var fin = Model.Finance;
     var tab = Model.Tab;
     if (tab == "registrations" && !canSeeStudents) tab = "overview";
     if (tab == "expenses" && !canSeeExpenses) tab = "overview";
+    if (tab == "payments" && !showPayments) tab = "overview";
     string TabCss(string t) => tab == t ? "active" : "";
     string PaneCss(string t) => tab == t ? "show active" : "";
     var fill = w.Capacity is > 0 ? Math.Min(100, (int)Math.Round(100.0 * Model.RegistrationCount / w.Capacity.Value)) : (int?)null;
@@ -24,7 +29,7 @@
         <div class="d-flex flex-wrap gap-4 align-items-start">
             <div class="ws-date-tile">
                 <span class="m">@w.StartDateTime.ToString("MMM")</span>
-                <span class="d">@w.StartDateTime.Day</span>
+                <span class="d">@(w.StartDateTime.Day)@(w.IsMultiDay ? "–" + (w.EndDateTime.Month == w.StartDateTime.Month ? w.EndDateTime.Day.ToString() : w.EndDateTime.ToString("d MMM")) : "")</span>
             </div>
             <div class="flex-grow-1" style="min-width: 220px">
                 <div class="d-flex flex-wrap gap-2 mb-2">
@@ -68,7 +73,7 @@
             <div class="col-sm-6 col-lg">
                 <div class="ws-fact">
                     <span class="stat-icon bg-label-primary"><i class="icon-base ri ri-time-line"></i></span>
-                    <div><small>@w.StartDateTime.ToString("dddd")</small><strong>@w.StartDateTime.ToString("HH:mm") – @w.EndDateTime.ToString("HH:mm")</strong></div>
+                    <div><small>@(w.IsMultiDay ? DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime) + " · " + w.Days + " days" : w.StartDateTime.ToString("dddd, dd MMM yyyy"))</small><strong>@DisplayFormat.Hours(w)@(w.IsMultiDay ? " daily" : "")</strong></div>
                 </div>
             </div>
             <div class="col-sm-6 col-lg">
@@ -80,14 +85,14 @@
             <div class="col-sm-6 col-lg">
                 <div class="ws-fact">
                     <span class="stat-icon bg-label-warning"><i class="icon-base ri ri-flag-line"></i></span>
-                    <div><small>Country · currency</small><strong>@countryName · @currency</strong></div>
+                    <div><small>@countryName · @currency</small><strong>@(w.IsFree ? "Free" : MoneyFormat.Format(w.Fee!.Value, currency))</strong></div>
                 </div>
             </div>
             <div class="col-sm-6 col-lg">
                 <div class="ws-fact">
                     <span class="stat-icon bg-label-success"><i class="icon-base ri ri-group-line"></i></span>
                     <div class="flex-grow-1">
-                        <small>Students</small>
+                        <small>Participants</small>
                         <strong>@(Model.RegistrationCount + (w.Capacity.HasValue ? " / " + w.Capacity : ""))</strong>
                         @if (fill.HasValue)
                         {
@@ -123,6 +128,10 @@
                 {
                     <li class="nav-item"><button type="button" class="nav-link @TabCss("expenses")" data-bs-toggle="tab" data-bs-target="#tab-expenses" data-tab-name="expenses" role="tab"><i class="icon-base ri ri-wallet-3-line me-1"></i>Expenses <span class="badge rounded-pill bg-label-secondary ms-1">@Model.Expenses.Count</span></button></li>
                 }
+                @if (showPayments)
+                {
+                    <li class="nav-item"><button type="button" class="nav-link @TabCss("payments")" data-bs-toggle="tab" data-bs-target="#tab-payments" data-tab-name="payments" role="tab"><i class="icon-base ri ri-hand-coin-line me-1"></i>Payments <span class="badge rounded-pill bg-label-success ms-1">@Model.Collections.Count</span></button></li>
+                }
                 <li class="nav-item"><button type="button" class="nav-link @TabCss("history")" data-bs-toggle="tab" data-bs-target="#tab-history" data-tab-name="history" role="tab"><i class="icon-base ri ri-history-line me-1"></i>History</button></li>
             </ul>
 
@@ -130,7 +139,7 @@
                 <!-- Overview -->
                 <div class="tab-pane fade @PaneCss("overview")" id="tab-overview" role="tabpanel">
                     <div class="card-body">
-                        @if (string.IsNullOrWhiteSpace(w.Content))
+                        @if (string.IsNullOrWhiteSpace(w.Content) && string.IsNullOrWhiteSpace(w.ContentAr))
                         {
                             <div class="empty-state">
                                 <span class="stat-icon bg-label-secondary"><i class="icon-base ri ri-file-text-line"></i></span>
@@ -140,8 +149,17 @@
                         }
                         else
                         {
-                            <h6 class="text-body-secondary text-uppercase small mb-3">Content / agenda</h6>
-                            <p class="content-pre mb-0">@w.Content</p>
+                            @if (!string.IsNullOrWhiteSpace(w.Content))
+                            {
+                                <h6 class="text-body-secondary text-uppercase small mb-3">Agenda (English)</h6>
+                                <div class="rich-text" dir="ltr">@RichText.ToHtml(w.Content)</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(w.ContentAr))
+                            {
+                                <hr class="my-5" />
+                                <h6 class="text-body-secondary small mb-3" dir="rtl">المحاور (Arabic)</h6>
+                                <div class="rich-text" dir="rtl">@RichText.ToHtml(w.ContentAr)</div>
+                            }
                         }
                         @if (w.Type == WorkshopType.Online && !string.IsNullOrEmpty(w.MeetingLink))
                         {
@@ -154,6 +172,10 @@
                             <hr class="my-5" />
                             <h6 class="text-body-secondary text-uppercase small mb-2">Location</h6>
                             <p class="mb-0">@w.Hall.Name — @w.Hall.Location</p>
+                            @if (!string.IsNullOrWhiteSpace(w.Hall.NameAr) || !string.IsNullOrWhiteSpace(w.Hall.LocationAr))
+                            {
+                                <p class="mb-0 small text-body-secondary" dir="rtl">@w.Hall.LocalName("ar")@(string.IsNullOrWhiteSpace(w.Hall.LocationAr) ? "" : " — " + w.Hall.LocationAr)</p>
+                            }
                         }
                     </div>
                 </div>
@@ -178,7 +200,7 @@
                             </div>
                             <div class="table-responsive">
                                 <table class="table">
-                                    <thead><tr><th>Student</th><th>Phone</th><th>Organization</th><th>Registered</th></tr></thead>
+                                    <thead><tr><th>Participant</th><th>Phone</th><th>Organization</th><th>Registered</th>@if (showPayments) { <th>Payment</th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
                                     @foreach (var r in Model.Registrations)
                                     {
@@ -196,6 +218,19 @@
                                             </td>
                                             <td>@r.Organization</td>
                                             <td class="text-nowrap small">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                                            @if (showPayments)
+                                            {
+                                                var paid = Model.PaidByRegistration.GetValueOrDefault(r.Id);
+                                                var ps = FinanceService.StatusOf(w.Fee, paid);
+                                                <td class="text-nowrap">
+                                                    <span class="badge @DisplayFormat.BadgeCss(ps)">@DisplayFormat.Label(ps)</span>
+                                                    <small class="d-block text-body-secondary mt-1">@paid.ToString("N2") / @w.Fee!.Value.ToString("N2")</small>
+                                                    @if (canCollect && ps != PaymentStatus.Paid)
+                                                    {
+                                                        <a asp-controller="Collections" asp-action="Create" asp-route-workshopId="@w.Id" asp-route-registrationId="@r.Id" class="small">Record payment</a>
+                                                    }
+                                                </td>
+                                            }
                                         </tr>
                                     }
                                     </tbody>
@@ -208,16 +243,20 @@
                 <!-- Expenses -->
                 @if (canSeeExpenses)
                 {
-                    var canManage = User.Can(Permissions.ExpensesManage);
+                    var canManage = User.Can(Permissions.ExpensesManage) && Model.CanAddExpense;
                     <div class="tab-pane fade @PaneCss("expenses")" id="tab-expenses" role="tabpanel">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-5 pt-4 pb-2">
                             <div>
                                 <span class="text-body-secondary small">Total</span>
                                 <span class="fw-semibold text-heading ms-1">@MoneyFormat.Format(Model.TotalExpenses, currency)</span>
                             </div>
-                            @if (canManage && Model.CanAddExpense)
+                            @if (canManage)
                             {
                                 <a asp-controller="Expenses" asp-action="Create" asp-route-workshopId="@w.Id" class="btn btn-sm btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add expense</a>
+                            }
+                            else if (!Model.CanAddExpense)
+                            {
+                                <span class="badge bg-label-secondary"><i class="icon-base ri ri-lock-line me-1"></i>Finalised — workshop completed</span>
                             }
                         </div>
                         @if (Model.Expenses.Count == 0)
@@ -225,7 +264,7 @@
                             <div class="empty-state">
                                 <span class="stat-icon bg-label-secondary"><i class="icon-base ri ri-wallet-3-line"></i></span>
                                 <h6 class="mb-1">No expenses recorded</h6>
-                                <p class="text-body-secondary small mb-0">@(Model.CanAddExpense ? "Add trainer fees, hall rental, catering and other costs in " + currency + "." : "Expenses can be added once the workshop is started (Ongoing).")</p>
+                                <p class="text-body-secondary small mb-0">@(Model.CanAddExpense ? "Add trainer fees, hall rental, catering and other costs in " + currency + ", before or during the workshop." : "This workshop is completed, so its expenses are finalised.")</p>
                             </div>
                         }
                         else
@@ -239,6 +278,7 @@
                                         <tr class="@(highlight == e.Id.ToString() ? "row-highlight" : "")">
                                             <td>
                                                 <div class="fw-medium text-heading">@(e.ExpenseCategory?.Name)</div>
+                                                @if (!string.IsNullOrWhiteSpace(e.ExpenseCategory?.NameAr)) { <small class="text-body-secondary d-block" dir="rtl">@e.ExpenseCategory.NameAr</small> }
                                                 @if (!string.IsNullOrWhiteSpace(e.Description)) { <small class="text-body-secondary">@e.Description</small> }
                                             </td>
                                             <td class="text-nowrap">@e.ExpenseDate.ToString("dd MMM yyyy")</td>
@@ -264,6 +304,72 @@
                     </div>
                 }
 
+                <!-- Payments (US-18) -->
+                @if (showPayments)
+                {
+                    <div class="tab-pane fade @PaneCss("payments")" id="tab-payments" role="tabpanel">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-5 pt-4 pb-2">
+                            <div>
+                                <span class="text-body-secondary small">Collected</span>
+                                <span class="fw-semibold text-heading ms-1">@MoneyFormat.Format(fin.Collected, currency)</span>
+                                <span class="text-body-secondary small ms-3">Outstanding</span>
+                                <span class="fw-semibold text-heading ms-1">@MoneyFormat.Format(fin.Outstanding, currency)</span>
+                            </div>
+                            @if (canCollect && Model.RegistrationCount > 0)
+                            {
+                                <a asp-controller="Collections" asp-action="Create" asp-route-workshopId="@w.Id" class="btn btn-sm btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Record payment</a>
+                            }
+                            else if (!Model.CanCollect)
+                            {
+                                <span class="badge bg-label-secondary"><i class="icon-base ri ri-lock-line me-1"></i>Finalised — workshop completed</span>
+                            }
+                        </div>
+                        @if (Model.Collections.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <span class="stat-icon bg-label-success"><i class="icon-base ri ri-hand-coin-line"></i></span>
+                                <h6 class="mb-1">No payments recorded</h6>
+                                <p class="text-body-secondary small mb-0">@(Model.RegistrationCount == 0 ? "Payments can be recorded once participants register." : "Record each fee payment received from a participant (" + MoneyFormat.Format(w.Fee!.Value, currency) + " each).")</p>
+                            </div>
+                        }
+                        else
+                        {
+                            var canEditCollections = User.Can(Permissions.CollectionsManage) && Model.CanCollect;
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead><tr><th>Participant</th><th>Date</th><th>Method</th><th class="text-end">Amount (@currency)</th><th>Recorded by</th>@if (canEditCollections) { <th></th> }</tr></thead>
+                                    <tbody class="table-border-bottom-0">
+                                    @foreach (var c in Model.Collections)
+                                    {
+                                        <tr class="@(highlight == "c" + c.Id ? "row-highlight" : "")">
+                                            <td>
+                                                <div class="fw-medium text-heading">@c.Registration?.FullName</div>
+                                                @if (!string.IsNullOrWhiteSpace(c.Reference)) { <small class="text-body-secondary">Ref: @c.Reference</small> }
+                                            </td>
+                                            <td class="text-nowrap">@c.CollectedOn.ToString("dd MMM yyyy")</td>
+                                            <td>@DisplayFormat.Label(c.Method)</td>
+                                            <td class="text-end fw-medium text-nowrap">@c.Amount.ToString("N2")</td>
+                                            <td class="small">@(c.UpdatedBy ?? c.CreatedBy)</td>
+                                            @if (canEditCollections)
+                                            {
+                                                <td class="text-end text-nowrap">
+                                                    <a asp-controller="Collections" asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
+                                                    <form asp-controller="Collections" asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
+                                                          data-confirm="@MoneyFormat.Format(c.Amount, currency) from @c.Registration?.FullName will be removed." data-confirm-title="Delete this payment?" data-confirm-button="Delete">
+                                                        <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
+                                                    </form>
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                    </tbody>
+                                    <tfoot><tr><th colspan="3">Total collected</th><th class="text-end">@fin.Collected.ToString("N2")</th><th colspan="2"></th></tr></tfoot>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
+
                 <!-- History -->
                 <div class="tab-pane fade @PaneCss("history")" id="tab-history" role="tabpanel">
                     <div class="card-body">
@@ -275,7 +381,15 @@
                             @foreach (var h in Model.History)
                             {
                                 <li>
-                                    <div class="fw-medium">@h.FromStatus → @h.ToStatus</div>
+                                    @if (h.Action == WorkshopHistoryAction.StatusChanged)
+                                    {
+                                        var reversed = (int)h.ToStatus < (int)h.FromStatus;
+                                        <div class="fw-medium">@(reversed ? "Status reversed" : "Status changed"): @h.FromStatus → @h.ToStatus</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="fw-medium">@DisplayFormat.Label(h.Action)</div>
+                                    }
                                     <small class="text-body-secondary">@h.ChangedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(h.ChangedBy ?? "—")</small>
                                 </li>
                             }
@@ -313,7 +427,7 @@
                     var next = Model.NextStatus.Value;
                     var isStart = next == WorkshopStatus.Ongoing;
                     <form asp-action="AdvanceStatus" method="post"
-                          data-confirm="@(isStart ? "The workshop will move to Ongoing and you can start recording expenses." : "Registration will close and the workshop becomes read-only. This can't be undone.")"
+                          data-confirm="@(isStart ? "The workshop will move to Ongoing." : "Registration will close, the workshop becomes read-only, and no more expenses or payments can be added.")"
                           data-confirm-title="@(isStart ? "Start this workshop?" : "Mark as completed?")"
                           data-confirm-button="@(isStart ? "Start workshop" : "Complete workshop")" data-confirm-style="primary">
                         <input type="hidden" name="id" value="@w.Id" />
@@ -327,8 +441,51 @@
                 {
                     <p class="small text-body-secondary mb-0 text-center"><i class="icon-base ri ri-lock-line me-1"></i>Completed workshops are read-only.</p>
                 }
+                @if (Model.PreviousStatus.HasValue && User.Can(Permissions.WorkshopsReverseStatus))
+                {
+                    var prev = Model.PreviousStatus.Value;
+                    <form asp-action="ReverseStatus" method="post" class="mt-2"
+                          data-confirm="The workshop goes back from @w.Status to @prev. Use this to correct a status changed by mistake; the change is recorded in History."
+                          data-confirm-title="Reverse status to @prev?" data-confirm-button="Reverse to @prev">
+                        <input type="hidden" name="id" value="@w.Id" />
+                        <input type="hidden" name="target" value="@prev" />
+                        <button type="submit" class="btn btn-text-secondary btn-sm w-100" data-loading-text="Updating…"><i class="icon-base ri ri-arrow-go-back-line me-1"></i>Reverse to @prev</button>
+                    </form>
+                }
             </div>
         </div>
+
+        @if (canSeeMoney || canSeeExpenses)
+        {
+            <div class="card mb-6">
+                <div class="card-header pb-2 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Finance</h5>
+                    <span class="badge bg-label-primary">@currency</span>
+                </div>
+                <div class="card-body">
+                    @if (canSeeMoney)
+                    {
+                        <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Expected income</span><span class="fw-medium">@fin.ExpectedIncome.ToString("N2")</span></div>
+                        <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Collected</span><span class="fw-medium text-success">@fin.Collected.ToString("N2")</span></div>
+                        @if (fin.ExpectedIncome > 0)
+                        {
+                            <div class="progress mb-3" style="height: 6px" title="@fin.CollectedPercent% collected"><div class="progress-bar bg-success" style="width: @fin.CollectedPercent%"></div></div>
+                        }
+                        <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Outstanding</span><span class="fw-medium text-warning">@fin.Outstanding.ToString("N2")</span></div>
+                    }
+                    @if (canSeeExpenses)
+                    {
+                        <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Total expenses</span><span class="fw-medium text-danger">@fin.TotalExpenses.ToString("N2")</span></div>
+                    }
+                    @if (canSeeMoney && canSeeExpenses)
+                    {
+                        <hr class="my-3" />
+                        <div class="d-flex justify-content-between"><span class="fw-semibold">Net profit</span><span class="fw-semibold @(fin.NetProfit < 0 ? "text-danger" : "text-success")">@MoneyFormat.Format(fin.NetProfit, currency)</span></div>
+                        <small class="text-body-secondary d-block mt-2">Net profit = collected − expenses. @(w.IsFree ? "Free workshop: no fee income." : "Fee: " + MoneyFormat.Format(w.Fee!.Value, currency) + " per participant.")</small>
+                    }
+                </div>
+            </div>
+        }
 
         <div class="card">
             <div class="card-header pb-2 d-flex justify-content-between align-items-center">

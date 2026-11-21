@@ -51,20 +51,29 @@
                             </div>
                             <span asp-validation-for="DescriptionAr" class="text-danger small"></span>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-floating form-floating-outline">
-                                <textarea asp-for="Content" class="form-control" placeholder="Content / agenda" style="height: 200px" dir="ltr"></textarea>
-                                <label asp-for="Content"></label>
-                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-6">
+                <div class="card-header">
+                    <h5 class="mb-1">Agenda &amp; content</h5>
+                    <small class="text-body-secondary">Use headings, bold, lists, colours and links. The formatting is shown exactly like this on the registration page.</small>
+                </div>
+                <div class="card-body">
+                    <div class="row g-5">
+                        <div class="col-12">
+                            <label class="form-label" for="Content">Agenda (English)</label>
+                            <textarea asp-for="Content" class="d-none"></textarea>
+                            <div class="rich-editor" data-rich-editor="Content" dir="ltr" data-placeholder="Topics, trainer, requirements…"></div>
                         </div>
-                        <div class="col-md-6" dir="rtl">
-                            <div class="form-floating form-floating-outline">
-                                <textarea asp-for="ContentAr" class="form-control" placeholder="المحتوى" style="height: 200px"></textarea>
-                                <label asp-for="ContentAr"></label>
-                            </div>
+                        <div class="col-12" dir="rtl">
+                            <label class="form-label" for="ContentAr">المحاور / المحتوى (Arabic)</label>
+                            <textarea asp-for="ContentAr" class="d-none"></textarea>
+                            <div class="rich-editor" data-rich-editor="ContentAr" dir="rtl" data-placeholder="المحاور، المدرب، المتطلبات…"></div>
+                            <div class="form-text">Optional. If empty, the English agenda is shown on the Arabic page.</div>
                         </div>
                     </div>
-                    <div class="form-text mt-3">Agenda: topics, trainer and requirements. Shown to students on the registration page.</div>
                 </div>
             </div>
         </div>
@@ -73,10 +82,21 @@
             <div class="card mb-6">
                 <h5 class="card-header">Schedule</h5>
                 <div class="card-body">
+                    <div class="btn-group w-100 mb-5" role="group" aria-label="Schedule">
+                        <input type="radio" class="btn-check" name="IsMultiDay" id="sched-single" value="false" checked="@(!Model.IsMultiDay)" />
+                        <label class="btn btn-outline-primary" for="sched-single"><i class="icon-base ri ri-calendar-line me-1"></i>Single day</label>
+                        <input type="radio" class="btn-check" name="IsMultiDay" id="sched-range" value="true" checked="@Model.IsMultiDay" />
+                        <label class="btn btn-outline-primary" for="sched-range"><i class="icon-base ri ri-calendar-2-line me-1"></i>Date range</label>
+                    </div>
                     <div class="form-floating form-floating-outline mb-5">
                         <input asp-for="Date" type="date" class="form-control" />
-                        <label asp-for="Date"></label>
+                        <label asp-for="Date" id="start-date-label">@(Model.IsMultiDay ? "Start date" : "Date")</label>
                         <span asp-validation-for="Date" class="text-danger small"></span>
+                    </div>
+                    <div id="end-date-group" class="form-floating form-floating-outline mb-5 @(Model.IsMultiDay ? "" : "d-none")">
+                        <input asp-for="EndDate" type="date" class="form-control" />
+                        <label asp-for="EndDate"></label>
+                        <span asp-validation-for="EndDate" class="text-danger small"></span>
                     </div>
                     <div class="row g-4">
                         <div class="col-6">
@@ -94,6 +114,7 @@
                             <span asp-validation-for="EndTime" class="text-danger small"></span>
                         </div>
                     </div>
+                    <div class="form-text mt-2">For a date range, the hours apply to each day.</div>
                 </div>
             </div>
 
@@ -143,7 +164,18 @@
                         <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
                         <label asp-for="Capacity"></label>
                         <span asp-validation-for="Capacity" class="text-danger small"></span>
-                        <div class="form-text">Registration stops when this number is reached. Leave empty for no limit.</div>
+                        <div class="form-text">Registration stops when this number is reached. Leave empty for no limit. Not shown to applicants.</div>
+                    </div>
+                    <div class="mt-5">
+                        <div class="input-group input-group-merge">
+                            <div class="form-floating form-floating-outline">
+                                <input asp-for="Fee" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
+                                <label asp-for="Fee"></label>
+                            </div>
+                            <span class="input-group-text" data-currency-label>—</span>
+                        </div>
+                        <span asp-validation-for="Fee" class="text-danger small"></span>
+                        <div class="form-text">Per participant, in the workshop's currency. Leave empty or 0 for a free workshop.</div>
                     </div>
                 </div>
             </div>
@@ -163,4 +195,8 @@
     </div>
 </form>
 
+@section Styles {
+    <link rel="stylesheet" href="~/lib/quill/quill.snow.css" />
+    <script src="~/lib/quill/quill.min.js"></script>
+}
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

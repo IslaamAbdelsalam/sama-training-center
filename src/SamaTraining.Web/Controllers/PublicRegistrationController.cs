@@ -119,11 +119,10 @@ public class PublicRegistrationController : Controller
             return model;
         }
 
-        if (workshop.Capacity.HasValue)
+        // US-14: capacity is checked internally; the number of seats left is never shown.
+        if (workshop.Capacity.HasValue && await _service.CountRegistrationsAsync(workshop.Id) >= workshop.Capacity.Value)
         {
-            var count = await _service.CountRegistrationsAsync(workshop.Id);
-            model.SeatsLeft = Math.Max(0, workshop.Capacity.Value - count);
-            if (model.SeatsLeft == 0) model.State = "full";
+            model.State = "full";
         }
 
         return model;

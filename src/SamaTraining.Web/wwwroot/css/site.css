@@ -223,3 +223,40 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 }
 .currency-total { font-size: 1.75rem; font-weight: 600; color: var(--bs-heading-color); line-height: 1.2; }
 .currency-total span { font-size: 1rem; font-weight: 500; color: var(--bs-secondary-color); }
+
+/* ---- Rich-text agenda (US-04) ---- */
+.rich-editor { min-height: 220px; font-size: .9375rem; }
+.rich-editor .ql-editor { min-height: 220px; }
+.ql-toolbar.ql-snow { border-radius: .5rem .5rem 0 0; border-color: var(--bs-border-color); }
+.ql-container.ql-snow { border-radius: 0 0 .5rem .5rem; border-color: var(--bs-border-color); font-family: inherit; }
+[dir="rtl"] .ql-editor { text-align: right; }
+.rich-text { line-height: 1.65; overflow-wrap: anywhere; }
+.rich-text > :last-child { margin-bottom: 0; }
+.rich-text h2, .rich-text h3, .rich-text h4 { margin: 1rem 0 .5rem; }
+.rich-text ul, .rich-text ol { padding-inline-start: 1.5rem; margin-bottom: .75rem; }
+.rich-text blockquote { border-inline-start: 4px solid var(--bs-primary); padding: .25rem 1rem; margin: .75rem 0; color: var(--bs-secondary-color); }
+.rich-text .ql-align-center { text-align: center; }
+.rich-text .ql-align-right { text-align: right; }
+.rich-text .ql-align-justify { text-align: justify; }
+.rich-text .ql-direction-rtl { direction: rtl; text-align: inherit; }
+.rich-text .ql-direction-rtl.ql-align-right, [dir="rtl"] .rich-text .ql-direction-rtl { text-align: right; }
+.rich-text .ql-indent-1 { padding-inline-start: 3em; }
+.rich-text .ql-indent-2 { padding-inline-start: 6em; }
+.rich-text .ql-indent-3 { padding-inline-start: 9em; }
+
+/* ---- Finance (US-18, US-19) ---- */
+.fin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+.fin-tile { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .875rem 1rem; }
+.fin-tile small { display: block; color: var(--bs-secondary-color); font-size: .75rem; text-transform: uppercase; letter-spacing: .02em; }
+.fin-tile strong { display: block; font-size: 1.05rem; color: var(--bs-heading-color); white-space: nowrap; }
+.fin-tile.profit-pos strong { color: var(--bs-success); }
+.fin-tile.profit-neg strong { color: var(--bs-danger); }
+
+/* ---- Public page facts (US-12, US-13) ---- */
+.pub-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem; }
+.pub-fact { display: flex; gap: .625rem; align-items: flex-start; background: var(--bs-gray-50, #f8faf9); border: 1px solid var(--bs-border-color); border-radius: .625rem; padding: .625rem .75rem; }
+.pub-fact > i { font-size: 1.15rem; color: var(--bs-primary); margin-top: .1rem; }
+.pub-fact small { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--bs-secondary-color); }
+[dir="rtl"] .pub-fact small { text-transform: none; letter-spacing: 0; }
+.pub-fact span { color: var(--bs-heading-color); }
+.pub-fee { border-color: rgba(22, 163, 74, .35); }

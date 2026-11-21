@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
@@ -105,5 +106,38 @@ public class TestAppFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         return await action(db);
+    }
+
+    public async Task<T> WithServicesAsync<T>(Func<IServiceProvider, Task<T>> action)
+    {
+        using var scope = Services.CreateScope();
+        return await action(scope.ServiceProvider);
+    }
+
+    /// <summary>Creates (once) and signs in a user with the given role.</summary>
+    public async Task<HttpClient> SignedInUserAsync(string userName, string role, string password = "User@Pass123")
+    {
+        using (var scope = Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            if (await users.FindByNameAsync(userName) == null)
+            {
+                var u = new ApplicationUser { UserName = userName, Email = userName + "@sama.local", FullName = userName, IsActive = true };
+                var created = await users.CreateAsync(u, password);
+                if (!created.Succeeded) throw new InvalidOperationException(string.Join("; ", created.Errors.Select(e => e.Description)));
+                await users.AddToRoleAsync(u, role);
+            }
+        }
+
+        var client = CreateBrowser();
+        var page = await client.GetStringAsync("/Account/Login");
+        var res = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["UserNameOrEmail"] = userName,
+            ["Password"] = password,
+            ["__RequestVerificationToken"] = AntiForgery(page)
+        }));
+        if ((int)res.StatusCode != 302) throw new InvalidOperationException("Login failed for " + userName);
+        return client;
     }
 }

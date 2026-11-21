@@ -10,11 +10,13 @@ public class ReportService
 {
     private readonly ApplicationDbContext _db;
     private readonly AppSettings _settings;
+    private readonly FinanceService _finance;
 
-    public ReportService(ApplicationDbContext db, IOptions<AppSettings> settings)
+    public ReportService(ApplicationDbContext db, IOptions<AppSettings> settings, FinanceService finance)
     {
         _db = db;
         _settings = settings.Value;
+        _finance = finance;
     }
 
     public static ReportFilter WithDefaults(ReportFilter filter)
@@ -40,7 +42,7 @@ public class ReportService
         var workshops = await query
             .Select(w => new
             {
-                w.Id, w.Name, w.StartDateTime, w.Country, w.CurrencyCode, w.Type, w.Status, w.Capacity,
+                w.Id, w.Name, w.StartDateTime, w.EndDateTime, w.Fee, w.Country, w.CurrencyCode, w.Type, w.Status, w.Capacity,
                 Registrations = w.Registrations.Count
             })
             .ToListAsync();
@@ -59,6 +61,7 @@ public class ReportService
             .ToListAsync();
 
         var expenseByWorkshop = expenses.GroupBy(e => e.WorkshopId).ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+        var finance = await _finance.ForWorkshopsAsync(ids);
 
         var model = new ReportViewModel { Filter = filter };
 
@@ -76,7 +79,11 @@ public class ReportService
                 Status = w.Status,
                 Capacity = w.Capacity,
                 Registrations = w.Registrations,
-                Expenses = expenseByWorkshop.GetValueOrDefault(w.Id)
+                Expenses = expenseByWorkshop.GetValueOrDefault(w.Id),
+                EndDateTime = w.EndDateTime,
+                Fee = w.Fee,
+                ExpectedIncome = finance.GetValueOrDefault(w.Id)?.ExpectedIncome ?? 0,
+                Collected = finance.GetValueOrDefault(w.Id)?.Collected ?? 0
             })
             .ToList();
 
@@ -90,7 +97,9 @@ public class ReportService
                 Workshops = g.Count(),
                 Completed = g.Count(r => r.Status == WorkshopStatus.Completed),
                 Registrations = g.Sum(r => r.Registrations),
-                Expenses = g.Sum(r => r.Expenses)
+                Expenses = g.Sum(r => r.Expenses),
+                ExpectedIncome = g.Sum(r => r.ExpectedIncome),
+                Collected = g.Sum(r => r.Collected)
             })
             .ToList();
 

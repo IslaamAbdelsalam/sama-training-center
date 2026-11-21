@@ -34,12 +34,12 @@
             <input asp-for="RememberMe" class="form-check-input" />
             <label asp-for="RememberMe" class="form-check-label"></label>
         </div>
+        <a asp-action="ForgotPassword" class="small">Forgot password?</a>
     </div>
 
     <button class="btn btn-primary d-grid w-100" type="submit">Sign in</button>
 </form>
 
-<p class="text-center small text-body-secondary mb-0">Forgot your password? Ask your system administrator to reset it.</p>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

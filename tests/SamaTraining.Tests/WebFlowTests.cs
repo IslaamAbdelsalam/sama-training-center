@@ -136,9 +136,9 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         Assert.Equal("text/csv", csv.Content.Headers.ContentType!.MediaType);
         Assert.Contains("amna@example.com", await csv.Content.ReadAsStringAsync());
 
-        // Expenses are blocked while Pending
-        var blocked = await client.GetAsync($"/Expenses/Create?workshopId={id}");
-        Assert.Equal(HttpStatusCode.Redirect, blocked.StatusCode);
+        // US-08: expenses can be added before the workshop starts (Pending)
+        var beforeStart = await client.GetAsync($"/Expenses/Create?workshopId={id}");
+        Assert.Equal(HttpStatusCode.OK, beforeStart.StatusCode);
 
         // Start the workshop, then add an expense
         await client.PostAsync("/Workshops/AdvanceStatus", Form(details, new() { ["id"] = id.ToString(), ["target"] = "Ongoing" }));
@@ -204,6 +204,11 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         Assert.Equal(HttpStatusCode.Redirect, edit.StatusCode);
         var closed = await student.GetStringAsync($"/register/{token}");
         Assert.Contains("Registration is closed", closed);
+
+        // US-09: no new expenses after completion; existing ones stay visible
+        var afterComplete = await client.GetAsync($"/Expenses/Create?workshopId={id}");
+        Assert.Equal(HttpStatusCode.Redirect, afterComplete.StatusCode);
+        Assert.Contains("125.50", await client.GetStringAsync(detailsUrl + "?tab=expenses"));
 
         // Category in use cannot be deleted
         var catPage = await client.GetStringAsync("/ExpenseCategories");
@@ -476,5 +481,269 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         Assert.Contains("Sudan", html);
         Assert.Contains("Egypt", html);
         Assert.DoesNotContain("USD", html);
+    }
+
+    // ---------- Backlog v2 (US-01 .. US-19) ----------
+
+    [Fact] // US-01 / US-02 / US-03: Arabic name required; delete from the edit screen only when not in use
+    public async Task Halls_RequireArabicName_AndDeleteFromEditScreen()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Halls/Create");
+        var noArabic = await client.PostAsync("/Halls/Save", Form(page, new() { ["Id"] = "0", ["Name"] = "Hall Without Arabic", ["IsActive"] = "true" }));
+        Assert.Equal(HttpStatusCode.OK, noArabic.StatusCode);
+        Assert.Contains("Enter the Arabic name", await noArabic.Content.ReadAsStringAsync());
+
+        var saved = await client.PostAsync("/Halls/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "Conference Room B", ["NameAr"] = "قاعة المؤتمرات ب",
+            ["Location"] = "Khartoum, Street 15", ["LocationAr"] = "الخرطوم، شارع 15", ["IsActive"] = "true"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        var hallId = await _app.WithDbAsync(db => db.Halls.Where(h => h.Name == "Conference Room B").Select(h => h.Id).SingleAsync());
+
+        // Full-width edit screen with a Delete action
+        var edit = await client.GetStringAsync($"/Halls/Edit/{hallId}");
+        Assert.Contains("قاعة المؤتمرات ب", edit);
+        Assert.Contains("Delete this hall?", edit);
+        Assert.DoesNotContain("max-width: 640px", edit);
+
+        // A hall used by a workshop can't be deleted
+        var usedHallId = await _app.WithDbAsync(db => db.Halls.Where(h => h.Name == "Main Hall").Select(h => h.Id).SingleAsync());
+        var wPage = await client.GetStringAsync("/Workshops/Create");
+        await client.PostAsync("/Workshops/Save", Form(wPage, new()
+        {
+            ["Id"] = "0", ["Name"] = "Uses Main Hall", ["NameAr"] = "تستخدم القاعة الرئيسية",
+            ["Date"] = DateTime.Today.AddDays(4).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "11:00",
+            ["Type"] = "OnSite", ["HallId"] = usedHallId.ToString(), ["Country"] = "SD"
+        }));
+        var usedEdit = await client.GetStringAsync($"/Halls/Edit/{usedHallId}");
+        Assert.Contains("can&#x27;t be deleted", usedEdit);
+        var blocked = await client.PostAsync($"/Halls/Delete/{usedHallId}?fromEdit=true", Form(usedEdit, new()));
+        Assert.Equal(HttpStatusCode.Redirect, blocked.StatusCode);
+        Assert.Contains($"/Halls/Edit/{usedHallId}", blocked.Headers.Location!.ToString());
+        Assert.True(await _app.WithDbAsync(db => db.Halls.AnyAsync(h => h.Id == usedHallId)));
+
+        // An unused one can
+        var del = await client.PostAsync($"/Halls/Delete/{hallId}?fromEdit=true", Form(edit, new()));
+        Assert.Equal(HttpStatusCode.Redirect, del.StatusCode);
+        Assert.False(await _app.WithDbAsync(db => db.Halls.AnyAsync(h => h.Id == hallId)));
+    }
+
+    [Fact] // US-03: expense categories need an Arabic name too
+    public async Task ExpenseCategory_RequiresArabicName()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/ExpenseCategories/Create");
+        var res = await client.PostAsync("/ExpenseCategories/Save", Form(page, new() { ["Id"] = "0", ["Name"] = "Internet", ["IsActive"] = "true" }));
+        Assert.Contains("Enter the Arabic name", await res.Content.ReadAsStringAsync());
+        res = await client.PostAsync("/ExpenseCategories/Save", Form(page, new() { ["Id"] = "0", ["Name"] = "Internet", ["NameAr"] = "الإنترنت", ["IsActive"] = "true" }));
+        Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
+        Assert.Equal("الإنترنت", await _app.WithDbAsync(db => db.ExpenseCategories.Where(c => c.Name == "Internet").Select(c => c.NameAr).SingleAsync()));
+    }
+
+    [Fact] // US-05: end date can't be before the start date
+    public async Task DateRange_EndDateCannotBeBeforeStart()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "Backwards", ["NameAr"] = "عكسي", ["IsMultiDay"] = "true",
+            ["Date"] = DateTime.Today.AddDays(10).ToString("yyyy-MM-dd"), ["EndDate"] = DateTime.Today.AddDays(8).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "09:00", ["EndTime"] = "12:00", ["Type"] = "Online", ["Country"] = "SD"
+        }));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("can&#x27;t be earlier than the start date", await res.Content.ReadAsStringAsync());
+    }
+
+    [Fact] // US-04, US-05, US-06, US-12, US-13, US-14, US-16, US-18, US-19 end to end
+    public async Task PaidMultiDayWorkshop_RegistrationPaymentsAndFinance()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var hallId = await _app.WithDbAsync(async db =>
+        {
+            var h = new Hall { Name = "Omdurman Centre", NameAr = "مركز أم درمان", Location = "Omdurman", LocationAr = "أم درمان، الحي الأول", IsActive = true };
+            db.Halls.Add(h);
+            await db.SaveChangesAsync();
+            return h.Id;
+        });
+
+        var start = DateTime.Today.AddDays(20);
+        var page = await client.GetStringAsync("/Workshops/Create");
+        Assert.Contains("data-rich-editor", page);
+        var save = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "Data Analysis Bootcamp", ["NameAr"] = "معسكر تحليل البيانات",
+            ["IsMultiDay"] = "true", ["Date"] = start.ToString("yyyy-MM-dd"), ["EndDate"] = start.AddDays(2).ToString("yyyy-MM-dd"),
+            ["StartTime"] = "09:00", ["EndTime"] = "14:00", ["Type"] = "OnSite", ["HallId"] = hallId.ToString(), ["Country"] = "SD",
+            ["Capacity"] = "2", ["Fee"] = "1500",
+            ["Content"] = "<h2>Day one</h2><p><strong>Excel</strong> basics</p><ul><li>Pivot tables</li></ul><script>alert('x')</script>",
+            ["ContentAr"] = "<h2>اليوم الأول</h2><p><strong>إكسل</strong></p>"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, save.StatusCode);
+        var detailsUrl = save.Headers.Location!.ToString();
+        var id = int.Parse(detailsUrl.Split('/').Last().Split('?')[0]);
+
+        var stored = await _app.WithDbAsync(db => db.Workshops.SingleAsync(w => w.Id == id));
+        Assert.Equal(start.AddDays(2).Date, stored.EndDateTime.Date);
+        Assert.Equal(1500m, stored.Fee);
+        Assert.DoesNotContain("<script", stored.Content);
+        Assert.Contains("<strong>Excel</strong>", stored.Content);
+
+        var details = await client.GetStringAsync(detailsUrl);
+        await client.PostAsync("/Workshops/OpenRegistration", Form(details, new() { ["id"] = id.ToString() }));
+        var token = await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.RegistrationToken!).SingleAsync());
+
+        // Registration page: Arabic details, fee and currency, formatted agenda, no seat count
+        var student = _app.CreateBrowser();
+        var ar = await student.GetStringAsync($"/register/{token}?lang=ar");
+        Assert.Contains("مركز أم درمان", ar);
+        Assert.Contains("أم درمان، الحي الأول", ar);
+        Assert.Contains("1,500.00 جنيه سوداني", ar);
+        Assert.Contains("حضوري", ar);
+        Assert.Contains("<strong>إكسل</strong>", ar);
+        Assert.Contains("3 أيام", ar);
+        Assert.DoesNotContain("المقاعد المتبقية", ar);
+        var en = await student.GetStringAsync($"/register/{token}?lang=en");
+        Assert.Contains("1,500.00 SDG", en);
+        Assert.Contains("<strong>Excel</strong>", en);
+        Assert.Contains("(3 days)", en);
+        Assert.DoesNotContain("<script", en);
+        Assert.DoesNotContain("Seats left", en);
+
+        async Task<HttpResponseMessage> Register(string name, string email, string phone, string lang = "en")
+        {
+            var p = await student.GetStringAsync($"/register/{token}?lang={lang}");
+            return await student.PostAsync($"/register/{token}?lang={lang}", Form(p, new() { ["FullName"] = name, ["Email"] = email, ["Phone"] = phone }));
+        }
+
+        Assert.Equal(HttpStatusCode.Redirect, (await Register("Hiba Osman", "hiba@example.com", "249911111111")).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await Register("Yousif Ali", "yousif@example.com", "249922222222")).StatusCode);
+
+        // US-16: full — the page apologises in the applicant's language
+        var full = await student.GetStringAsync($"/register/{token}?lang=ar");
+        Assert.Contains("نعتذر", full);
+        Assert.Equal(2, await _app.WithDbAsync(db => db.Registrations.CountAsync(r => r.WorkshopId == id)));
+
+        // US-18: record payments (one full, one partial)
+        var regs = await _app.WithDbAsync(db => db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.FullName).Select(r => r.Id).ToListAsync());
+        var payPage = await client.GetStringAsync($"/Collections/Create?workshopId={id}&registrationId={regs[0]}");
+        Assert.Contains("Record Payment", payPage);
+        var pay1 = await client.PostAsync("/Collections/Save", Form(payPage, new()
+        {
+            ["Id"] = "0", ["WorkshopId"] = id.ToString(), ["RegistrationId"] = regs[0].ToString(), ["Amount"] = "1500",
+            ["CollectedOn"] = DateTime.Today.ToString("yyyy-MM-dd"), ["Method"] = "BankTransfer", ["Reference"] = "TRX-1"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, pay1.StatusCode);
+        await client.PostAsync("/Collections/Save", Form(payPage, new()
+        {
+            ["Id"] = "0", ["WorkshopId"] = id.ToString(), ["RegistrationId"] = regs[1].ToString(), ["Amount"] = "500",
+            ["CollectedOn"] = DateTime.Today.ToString("yyyy-MM-dd"), ["Method"] = "Cash"
+        }));
+
+        // An expense before the workshop starts (US-08)
+        var categoryId = await _app.WithDbAsync(db => db.ExpenseCategories.Where(c => c.Name == "Hall Rental").Select(c => c.Id).SingleAsync());
+        var expensePage = await client.GetStringAsync($"/Expenses/Create?workshopId={id}");
+        await client.PostAsync("/Expenses/Save", Form(expensePage, new()
+        {
+            ["Id"] = "0", ["WorkshopId"] = id.ToString(), ["ExpenseCategoryId"] = categoryId.ToString(), ["Amount"] = "1200",
+            ["ExpenseDate"] = DateTime.Today.ToString("yyyy-MM-dd")
+        }));
+
+        // US-19 on the workshop page: expected 3,000 · collected 2,000 · outstanding 1,000 · expenses 1,200 · profit 800
+        details = await client.GetStringAsync(detailsUrl + "?tab=payments");
+        Assert.Contains("3,000.00", details);
+        Assert.Contains("2,000.00", details);
+        Assert.Contains("1,000.00", details);
+        Assert.Contains("800.00 SDG", details);
+        Assert.Contains("Partially paid", await client.GetStringAsync(detailsUrl + "?tab=registrations"));
+
+        // ... in reports and on the dashboard
+        var report = await client.GetStringAsync($"/Reports?From={DateTime.Today.AddDays(-1):yyyy-MM-dd}&To={start.AddDays(5):yyyy-MM-dd}");
+        Assert.Contains("Net profit", report);
+        Assert.Contains("800.00 SDG", report);
+        var csv = await (await client.GetAsync($"/Reports/Export?From={DateTime.Today.AddDays(-1):yyyy-MM-dd}&To={start.AddDays(5):yyyy-MM-dd}")).Content.ReadAsStringAsync();
+        Assert.Contains("Expected income,Collected,Outstanding", csv);
+        Assert.Contains("3000.00,2000.00,1000.00", csv);
+        var dashboard = await client.GetStringAsync("/");
+        Assert.Contains("Net profit", dashboard);
+        Assert.Contains("Expected income", dashboard);
+
+        // US-10 reverse; US-09 no new payments once completed
+        details = await client.GetStringAsync(detailsUrl);
+        await client.PostAsync("/Workshops/AdvanceStatus", Form(details, new() { ["id"] = id.ToString(), ["target"] = "Ongoing" }));
+        var reversed = await client.PostAsync("/Workshops/ReverseStatus", Form(details, new() { ["id"] = id.ToString(), ["target"] = "Pending" }));
+        Assert.Equal(HttpStatusCode.Redirect, reversed.StatusCode);
+        Assert.Equal(WorkshopStatus.Pending, await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.Status).SingleAsync()));
+        var history = await client.GetStringAsync(detailsUrl + "?tab=history");
+        Assert.Contains("Status reversed", history);
+        Assert.Contains("Registration opened", history);
+
+        await client.PostAsync("/Workshops/AdvanceStatus", Form(details, new() { ["id"] = id.ToString(), ["target"] = "Ongoing" }));
+        await client.PostAsync("/Workshops/AdvanceStatus", Form(details, new() { ["id"] = id.ToString(), ["target"] = "Completed" }));
+        var lateCollection = await client.GetAsync($"/Collections/Create?workshopId={id}");
+        Assert.Equal(HttpStatusCode.Redirect, lateCollection.StatusCode);
+        history = await client.GetStringAsync(detailsUrl + "?tab=history");
+        Assert.Contains("Registration closed", history);
+        Assert.Contains("2,000.00", await client.GetStringAsync(detailsUrl + "?tab=payments")); // still visible
+    }
+
+    [Fact] // US-18: finance officers can record payments; coordinators can't
+    public async Task Collections_FollowPermissions()
+    {
+        var coordinator = await _app.SignedInUserAsync("coord.pay", Roles.Coordinator);
+        var res = await coordinator.GetAsync("/Collections/Create?workshopId=1");
+        Assert.True(res.StatusCode is HttpStatusCode.Redirect or HttpStatusCode.Forbidden);
+        if (res.StatusCode == HttpStatusCode.Redirect) Assert.Contains("AccessDenied", res.Headers.Location!.ToString());
+    }
+
+    [Fact] // US-11: forgot password page is reachable from login and never reveals accounts
+    public async Task ForgotPassword_IsAvailableFromLogin()
+    {
+        var browser = _app.CreateBrowser();
+        var login = await browser.GetStringAsync("/Account/Login");
+        Assert.Contains("/Account/ForgotPassword", login);
+
+        var page = await browser.GetStringAsync("/Account/ForgotPassword");
+        Assert.Contains("Send reset link", page);
+
+        // No SMTP in tests: a clear message instead of a silent failure
+        var res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "admin" }));
+        Assert.Contains("isn&#x27;t set up yet", await res.Content.ReadAsStringAsync());
+
+        // A tampered reset link doesn't work
+        var reset = await browser.GetStringAsync("/Account/ResetPassword?userId=nope&token=bad");
+        var bad = await browser.PostAsync("/Account/ResetPassword", Form(reset, new()
+        {
+            ["UserId"] = "nope", ["Token"] = "bad", ["NewPassword"] = "New@Pass123", ["ConfirmPassword"] = "New@Pass123"
+        }));
+        Assert.Contains("invalid or has expired", await bad.Content.ReadAsStringAsync());
+    }
+
+    [Fact] // US-11: a valid reset token sets the new password and clears a lockout
+    public async Task ResetToken_SetsNewPassword()
+    {
+        var browser = _app.CreateBrowser();
+        var (userId, token) = await _app.WithServicesAsync(async sp =>
+        {
+            var users = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var u = new ApplicationUser { UserName = "reset.me", Email = "reset.me@sama.local", FullName = "Reset Me", IsActive = true };
+            await users.CreateAsync(u, "Old@Pass123");
+            await users.SetLockoutEndDateAsync(u, DateTimeOffset.UtcNow.AddMinutes(10));
+            return (u.Id, await users.GeneratePasswordResetTokenAsync(u));
+        });
+
+        var page = await browser.GetStringAsync($"/Account/ResetPassword?userId={userId}&token={Uri.EscapeDataString(token)}");
+        var res = await browser.PostAsync("/Account/ResetPassword", Form(page, new()
+        {
+            ["UserId"] = userId, ["Token"] = token, ["NewPassword"] = "Brand@New123", ["ConfirmPassword"] = "Brand@New123"
+        }));
+        Assert.Contains("Your password has been reset", await res.Content.ReadAsStringAsync());
+
+        var loginPage = await browser.GetStringAsync("/Account/Login");
+        var login = await browser.PostAsync("/Account/Login", Form(loginPage, new() { ["UserNameOrEmail"] = "reset.me", ["Password"] = "Brand@New123" }));
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        Assert.DoesNotContain("ChangePassword", login.Headers.Location!.ToString());
     }
 }

@@ -69,7 +69,7 @@ public class WorkshopServiceTests : IDisposable
         Assert.True((await _service.AdvanceStatusAsync(w.Id, WorkshopStatus.Completed, "u")).Success);
         Assert.Null(WorkshopService.NextStatus(WorkshopStatus.Completed));
 
-        var history = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == w.Id).ToListAsync();
+        var history = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == w.Id && h.Action == WorkshopHistoryAction.StatusChanged).ToListAsync();
         Assert.Equal(2, history.Count);
         Assert.All(history, h => Assert.Equal("u", h.ChangedBy));
     }
@@ -144,20 +144,172 @@ public class WorkshopServiceTests : IDisposable
         Assert.False(await _service.CanDeleteAsync(w2));
     }
 
-    [Fact] // US-05 / US-14
-    public void EditAndExpenseRules_FollowStatus()
+    [Fact] // US-08 / US-09: expenses and collections from creation until completion
+    public void EditExpenseAndCollectionRules_FollowStatus()
     {
-        var w = new Workshop { Status = WorkshopStatus.Pending };
+        var w = new Workshop { Status = WorkshopStatus.Pending, Fee = 100 };
         Assert.True(WorkshopService.CanEdit(w));
-        Assert.False(WorkshopService.CanAddExpense(w));
+        Assert.True(WorkshopService.CanAddExpense(w));
+        Assert.True(WorkshopService.CanCollect(w));
 
         w.Status = WorkshopStatus.Ongoing;
         Assert.True(WorkshopService.CanEdit(w));
         Assert.True(WorkshopService.CanAddExpense(w));
+        Assert.True(WorkshopService.CanCollect(w));
 
         w.Status = WorkshopStatus.Completed;
         Assert.False(WorkshopService.CanEdit(w));
-        Assert.True(WorkshopService.CanAddExpense(w));
+        Assert.False(WorkshopService.CanAddExpense(w));
+        Assert.False(WorkshopService.CanCollect(w));
+
+        // Nothing to collect on a free workshop
+        Assert.False(WorkshopService.CanCollect(new Workshop { Status = WorkshopStatus.Ongoing, Fee = null }));
+    }
+
+    [Fact] // US-10: reverse a status change, recorded with previous/new status and user
+    public async Task Status_CanBeReversed_OnlyWhenAllowed()
+    {
+        var w = await AddWorkshopAsync();
+        Assert.True((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Ongoing, "admin", allowReverse: false)).Success);
+        Assert.False((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Pending, "coord", allowReverse: false)).Success);
+        Assert.True((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Pending, "admin", allowReverse: true)).Success);
+
+        Assert.True((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Ongoing, "admin", allowReverse: false)).Success);
+        Assert.True((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Completed, "admin", allowReverse: false)).Success);
+        Assert.True((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Ongoing, "admin", allowReverse: true)).Success);
+
+        var reversal = await _db.WorkshopStatusHistory
+            .Where(h => h.WorkshopId == w.Id && h.FromStatus == WorkshopStatus.Ongoing && h.ToStatus == WorkshopStatus.Pending)
+            .SingleAsync();
+        Assert.Equal(WorkshopHistoryAction.StatusChanged, reversal.Action);
+        Assert.Equal("admin", reversal.ChangedBy);
+    }
+
+    [Fact]
+    public async Task Status_CannotSkipSteps()
+    {
+        var w = await AddWorkshopAsync();
+        Assert.False((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Completed, "admin", allowReverse: true)).Success);
+        await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Ongoing, "admin", allowReverse: false);
+        await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Completed, "admin", allowReverse: false);
+        Assert.False((await _service.ChangeStatusAsync(w.Id, WorkshopStatus.Pending, "admin", allowReverse: true)).Success);
+    }
+
+    [Fact] // US-07: opening and closing registration are recorded in history
+    public async Task RegistrationOpenClose_IsRecordedInHistory()
+    {
+        var w = await AddWorkshopAsync();
+        await _service.OpenRegistrationAsync(w.Id, "coord");
+        await _service.CloseRegistrationAsync(w.Id, "coord");
+        await _service.CloseRegistrationAsync(w.Id, "coord"); // already closed: not recorded twice
+
+        var actions = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == w.Id).OrderBy(h => h.Id).ToListAsync();
+        Assert.Equal(new[] { WorkshopHistoryAction.RegistrationOpened, WorkshopHistoryAction.RegistrationClosed }, actions.Select(a => a.Action));
+        Assert.All(actions, a => Assert.Equal("coord", a.ChangedBy));
+        Assert.All(actions, a => Assert.True(a.ChangedAt > DateTime.UtcNow.AddMinutes(-5)));
+    }
+
+    [Fact] // US-15: the last seat goes to only one applicant when several submit at once
+    public async Task Capacity_IsNeverExceeded_UnderConcurrentRegistrations()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"sama-{Guid.NewGuid():N}.db");
+        var cs = $"Data Source={path};Default Timeout=30";
+        try
+        {
+            int workshopId;
+            string token;
+            await using (var setup = NewFileDb(cs))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var w = new Workshop
+                {
+                    Name = "Last seat", StartDateTime = DateTime.Today.AddDays(2).AddHours(9), EndDateTime = DateTime.Today.AddDays(2).AddHours(12),
+                    Type = WorkshopType.Online, Capacity = 3, RegistrationOpen = true, RegistrationToken = WorkshopService.NewToken()
+                };
+                setup.Workshops.Add(w);
+                await setup.SaveChangesAsync();
+                workshopId = w.Id;
+                token = w.RegistrationToken!;
+            }
+
+            var tasks = Enumerable.Range(0, 12).Select(i => Task.Run(async () =>
+            {
+                await using var db = NewFileDb(cs);
+                var service = new WorkshopService(db);
+                for (var attempt = 0; ; attempt++)
+                {
+                    try { return await service.RegisterAsync(token, Student($"p{i}@x.com")); }
+                    catch (Exception) when (attempt < 20) { await Task.Delay(20 * (attempt + 1)); } // SQLite "database is locked"
+                }
+            })).ToList();
+            var outcomes = await Task.WhenAll(tasks);
+
+            await using var check = NewFileDb(cs);
+            Assert.Equal(3, await check.Registrations.CountAsync(r => r.WorkshopId == workshopId));
+            Assert.Equal(3, outcomes.Count(o => o == WorkshopService.RegisterOutcome.Success));
+            Assert.Equal(9, outcomes.Count(o => o == WorkshopService.RegisterOutcome.Full));
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { File.Delete(path); } catch (IOException) { }
+        }
+    }
+
+    private static ApplicationDbContext NewFileDb(string cs) =>
+        new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(cs).Options);
+
+    [Fact] // US-19: financial definitions
+    public async Task Finance_FollowsTheAgreedDefinitions()
+    {
+        var w = await AddWorkshopAsync();
+        w.Fee = 500;
+        w.CurrencyCode = "SDG";
+        await _db.SaveChangesAsync();
+        await _service.OpenRegistrationAsync(w.Id, "u");
+        await _db.Entry(w).ReloadAsync();
+        await _service.RegisterAsync(w.RegistrationToken!, Student("a@x.com"));
+        await _service.RegisterAsync(w.RegistrationToken!, Student("b@x.com"));
+        await _service.RegisterAsync(w.RegistrationToken!, Student("c@x.com"));
+        _db.ChangeTracker.Clear();
+
+        var regs = await _db.Registrations.Where(r => r.WorkshopId == w.Id).OrderBy(r => r.Email).ToListAsync();
+        var category = new ExpenseCategory { Name = "Catering" };
+        _db.ExpenseCategories.Add(category);
+        _db.FeeCollections.Add(new FeeCollection { WorkshopId = w.Id, RegistrationId = regs[0].Id, Amount = 500, CurrencyCode = "SDG", CollectedOn = DateTime.Today });
+        _db.FeeCollections.Add(new FeeCollection { WorkshopId = w.Id, RegistrationId = regs[1].Id, Amount = 200, CurrencyCode = "SDG", CollectedOn = DateTime.Today });
+        _db.WorkshopExpenses.Add(new WorkshopExpense { WorkshopId = w.Id, ExpenseCategory = category, Amount = 300, ExpenseDate = DateTime.Today });
+        await _db.SaveChangesAsync();
+
+        var f = (await new FinanceService(_db).ForWorkshopsAsync(new[] { w.Id }))[w.Id];
+        Assert.Equal(1500m, f.ExpectedIncome);   // 3 × 500
+        Assert.Equal(700m, f.Collected);         // 500 + 200
+        Assert.Equal(800m, f.Outstanding);       // 1500 − 700
+        Assert.Equal(300m, f.TotalExpenses);
+        Assert.Equal(400m, f.NetProfit);         // 700 − 300
+
+        Assert.Equal(PaymentStatus.Paid, FinanceService.StatusOf(500, 500));
+        Assert.Equal(PaymentStatus.PartiallyPaid, FinanceService.StatusOf(500, 200));
+        Assert.Equal(PaymentStatus.Unpaid, FinanceService.StatusOf(500, 0));
+        Assert.Equal(PaymentStatus.Free, FinanceService.StatusOf(null, 0));
+    }
+
+    [Fact] // US-04: agenda formatting is kept, unsafe markup is removed
+    public void RichText_KeepsFormatting_RemovesScripts()
+    {
+        var clean = RichText.Clean("<h2>Day 1</h2><p><strong>Bold</strong> <a href=\"https://sama.org\">link</a></p><ul><li>One</li></ul><script>alert(1)</script><p onclick=\"x()\">Hi</p><a href=\"javascript:alert(1)\">bad</a>");
+        Assert.NotNull(clean);
+        Assert.Contains("<h2>Day 1</h2>", clean);
+        Assert.Contains("<strong>Bold</strong>", clean);
+        Assert.Contains("<ul><li>One</li></ul>", clean);
+        Assert.Contains("rel=\"noopener noreferrer\"", clean);
+        Assert.DoesNotContain("script", clean);
+        Assert.DoesNotContain("onclick", clean);
+        Assert.DoesNotContain("javascript:", clean);
+        Assert.Null(RichText.Clean("<p><br></p>"));
+
+        // Older plain-text agendas keep their line breaks and are encoded
+        Assert.Equal("<p>Line 1<br>&lt;b&gt;</p>", RichText.ToHtml("Line 1\n<b>").ToString());
     }
 
     [Fact] // US-09: regenerating the link invalidates the old one

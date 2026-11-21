@@ -26,6 +26,12 @@ public class CurrencySummary
     public int Registrations { get; set; }
     public decimal Expenses { get; set; }
     public decimal? CostPerStudent => Registrations > 0 ? Math.Round(Expenses / Registrations, 2) : null;
+
+    /// <summary>US-19 figures for this currency.</summary>
+    public decimal ExpectedIncome { get; set; }
+    public decimal Collected { get; set; }
+    public decimal Outstanding => ExpectedIncome - Collected;
+    public decimal NetProfit => Collected - Expenses;
 }
 
 public class WorkshopReportRow
@@ -41,6 +47,12 @@ public class WorkshopReportRow
     public int Registrations { get; set; }
     public int? Capacity { get; set; }
     public decimal Expenses { get; set; }
+    public decimal? Fee { get; set; }
+    public decimal ExpectedIncome { get; set; }
+    public decimal Collected { get; set; }
+    public decimal Outstanding => ExpectedIncome - Collected;
+    public decimal NetProfit => Collected - Expenses;
+    public DateTime EndDateTime { get; set; }
 
     public int? FillPercent => Capacity is > 0 ? (int)Math.Round(100.0 * Registrations / Capacity.Value) : null;
     public decimal? CostPerStudent => Registrations > 0 ? Math.Round(Expenses / Registrations, 2) : null;

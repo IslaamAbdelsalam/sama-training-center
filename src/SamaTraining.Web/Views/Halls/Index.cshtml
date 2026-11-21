@@ -27,8 +27,8 @@
             {
                 var used = uses.GetValueOrDefault(h.Id);
                 <tr class="@(highlight == h.Id.ToString() ? "row-highlight" : "")">
-                    <td class="fw-medium">@h.Name</td>
-                    <td>@h.Location</td>
+                    <td><div class="fw-medium text-heading">@h.Name</div>@if (!string.IsNullOrWhiteSpace(h.NameAr)) { <small class="text-body-secondary" dir="rtl">@h.NameAr</small> } else { <small class="text-warning">Arabic name missing</small> }</td>
+                    <td><div>@h.Location</div>@if (!string.IsNullOrWhiteSpace(h.LocationAr)) { <small class="text-body-secondary" dir="rtl">@h.LocationAr</small> }</td>
                     <td>@(h.Capacity?.ToString() ?? "—")</td>
                     <td>@used workshop(s)</td>
                     <td>

@@ -49,6 +49,22 @@ public static class DbSeeder
             }
         }
 
+        // One-time grant of permissions added in version 2 (fee collections) to existing default roles.
+        const string seedMarker = "seed-version";
+        foreach (var (roleName, added) in Roles.AddedInV2)
+        {
+            var role = await roleManager.FindByNameAsync(roleName);
+            if (role == null) continue;
+            var claims = await roleManager.GetClaimsAsync(role);
+            if (claims.Any(c => c.Type == seedMarker && c.Value == "2")) continue;
+            var have = claims.Where(c => c.Type == Permissions.ClaimType).Select(c => c.Value).ToHashSet();
+            foreach (var p in added.Where(p => !have.Contains(p)))
+            {
+                await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(Permissions.ClaimType, p));
+            }
+            await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(seedMarker, "2"));
+        }
+
         // The Administrator role always keeps every permission, including ones added in later versions.
         var adminRole = await roleManager.FindByNameAsync(Roles.Administrator);
         if (adminRole != null)
@@ -118,19 +134,35 @@ public static class DbSeeder
         if (!await db.ExpenseCategories.AnyAsync())
         {
             db.ExpenseCategories.AddRange(
-                new ExpenseCategory { Name = "Trainer Fees" },
-                new ExpenseCategory { Name = "Hall Rental" },
-                new ExpenseCategory { Name = "Catering" },
-                new ExpenseCategory { Name = "Printing & Materials" },
-                new ExpenseCategory { Name = "Transportation" },
-                new ExpenseCategory { Name = "Certificates" });
+                new ExpenseCategory { Name = "Trainer Fees", NameAr = "أتعاب المدرب" },
+                new ExpenseCategory { Name = "Hall Rental", NameAr = "إيجار القاعة" },
+                new ExpenseCategory { Name = "Catering", NameAr = "الضيافة" },
+                new ExpenseCategory { Name = "Printing & Materials", NameAr = "الطباعة والمواد" },
+                new ExpenseCategory { Name = "Transportation", NameAr = "المواصلات" },
+                new ExpenseCategory { Name = "Certificates", NameAr = "الشهادات" });
         }
 
         if (!await db.Halls.AnyAsync())
         {
             db.Halls.AddRange(
-                new Hall { Name = "Main Hall", Capacity = 60 },
-                new Hall { Name = "Training Room 1", Capacity = 25 });
+                new Hall { Name = "Main Hall", NameAr = "القاعة الرئيسية", Capacity = 60 },
+                new Hall { Name = "Training Room 1", NameAr = "قاعة التدريب 1", Capacity = 25 });
+        }
+
+        // US-03: give the starter values their Arabic names on databases created before Arabic names existed.
+        var starterArabic = new Dictionary<string, string>
+        {
+            ["Trainer Fees"] = "أتعاب المدرب", ["Hall Rental"] = "إيجار القاعة", ["Catering"] = "الضيافة",
+            ["Printing & Materials"] = "الطباعة والمواد", ["Transportation"] = "المواصلات", ["Certificates"] = "الشهادات",
+            ["Main Hall"] = "القاعة الرئيسية", ["Training Room 1"] = "قاعة التدريب 1"
+        };
+        foreach (var c in await db.ExpenseCategories.Where(c => c.NameAr == null || c.NameAr == "").ToListAsync())
+        {
+            if (starterArabic.TryGetValue(c.Name, out var ar)) c.NameAr = ar;
+        }
+        foreach (var h in await db.Halls.Where(h => h.NameAr == null || h.NameAr == "").ToListAsync())
+        {
+            if (starterArabic.TryGetValue(h.Name, out var ar)) h.NameAr = ar;
         }
 
         await db.SaveChangesAsync();
