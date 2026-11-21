@@ -254,12 +254,77 @@ namespace SamaTraining.Web.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("NameAr")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
                     b.ToTable("ExpenseCategories");
+                });
+
+            modelBuilder.Entity("SamaTraining.Web.Data.FeeCollection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CollectedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("RegistrationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("WorkshopId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectedOn");
+
+                    b.HasIndex("RegistrationId");
+
+                    b.HasIndex("WorkshopId");
+
+                    b.ToTable("FeeCollections");
                 });
 
             modelBuilder.Entity("SamaTraining.Web.Data.Hall", b =>
@@ -280,8 +345,16 @@ namespace SamaTraining.Web.Data.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<string>("LocationAr")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NameAr")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -393,6 +466,9 @@ namespace SamaTraining.Web.Data.Migrations
                     b.Property<DateTime>("EndDateTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("Fee")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int?>("HallId")
                         .HasColumnType("int");
 
@@ -500,6 +576,9 @@ namespace SamaTraining.Web.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
@@ -574,6 +653,25 @@ namespace SamaTraining.Web.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("SamaTraining.Web.Data.FeeCollection", b =>
+                {
+                    b.HasOne("SamaTraining.Web.Data.Registration", "Registration")
+                        .WithMany("Collections")
+                        .HasForeignKey("RegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SamaTraining.Web.Data.Workshop", "Workshop")
+                        .WithMany("Collections")
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Registration");
+
+                    b.Navigation("Workshop");
+                });
+
             modelBuilder.Entity("SamaTraining.Web.Data.Registration", b =>
                 {
                     b.HasOne("SamaTraining.Web.Data.Workshop", "Workshop")
@@ -635,8 +733,15 @@ namespace SamaTraining.Web.Data.Migrations
                     b.Navigation("Workshops");
                 });
 
+            modelBuilder.Entity("SamaTraining.Web.Data.Registration", b =>
+                {
+                    b.Navigation("Collections");
+                });
+
             modelBuilder.Entity("SamaTraining.Web.Data.Workshop", b =>
                 {
+                    b.Navigation("Collections");
+
                     b.Navigation("Expenses");
 
                     b.Navigation("Registrations");
