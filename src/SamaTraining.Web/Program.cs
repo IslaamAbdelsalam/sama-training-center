@@ -11,10 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 // ---- Private server settings (production) ----
 // Secrets (database connection string, first admin password) live in a file on the server,
 // OUTSIDE the website folder, so they are never in GitHub and survive every redeploy:
-//   <site root>/settings/appsettings.Production.json   (next to the wwwroot folder)
+//   <site root>/private/appsettings.Production.json   (next to the wwwroot folder; MonsterASP keeps "private" off the web)
 // Override the folder with the SAMA_SETTINGS_PATH environment variable if needed.
 var privateSettingsDir = Environment.GetEnvironmentVariable("SAMA_SETTINGS_PATH")
-    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "settings"));
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "private"));
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Configuration.AddJsonFile(Path.Combine(privateSettingsDir, "appsettings.Production.json"), optional: true, reloadOnChange: false);
