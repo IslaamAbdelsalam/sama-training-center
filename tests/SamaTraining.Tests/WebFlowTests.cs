@@ -718,9 +718,26 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await browser.GetStringAsync("/Account/ForgotPassword");
         Assert.Contains("Send reset link", page);
 
-        // No SMTP in tests: a clear message instead of a silent failure
-        var res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "admin" }));
-        Assert.Contains("isn&#x27;t set up yet", await res.Content.ReadAsStringAsync());
+        // Unknown username or e-mail: a clear message
+        var res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "nobody.here" }));
+        Assert.Contains("No account was found with this username or e-mail", await res.Content.ReadAsStringAsync());
+        res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "ghost@gmail.com" }));
+        Assert.Contains("No account was found with this username or e-mail", await res.Content.ReadAsStringAsync());
+
+        // Found, but a placeholder address (admin@sama.local) can't receive mail
+        res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "admin" }));
+        Assert.Contains("no working e-mail address", await res.Content.ReadAsStringAsync());
+
+        // Found by e-mail with a real address; no SMTP in tests → says so clearly
+        await _app.WithServicesAsync(async sp =>
+        {
+            var users = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            if (await users.FindByNameAsync("mail.user") == null)
+                await users.CreateAsync(new ApplicationUser { UserName = "mail.user", Email = "mail.user@gmail.com", FullName = "Mail User", IsActive = true }, "Mail@Pass123");
+            return true;
+        });
+        res = await browser.PostAsync("/Account/ForgotPassword", Form(page, new() { ["UserNameOrEmail"] = "mail.user@gmail.com" }));
+        Assert.Contains("Your account was found, but sending e-mails isn&#x27;t set up", await res.Content.ReadAsStringAsync());
 
         // A tampered reset link doesn't work
         var reset = await browser.GetStringAsync("/Account/ResetPassword?userId=nope&token=bad");

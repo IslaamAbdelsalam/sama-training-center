@@ -150,40 +150,75 @@ public class AccountController : AppController
         ViewBag.EmailEnabled = _email.IsConfigured;
         if (!ModelState.IsValid) return View(model);
 
-        if (!_email.IsConfigured)
+        // 1. Does the account exist? Look it up by username first, then by e-mail.
+        var input = model.UserNameOrEmail.Trim();
+        var user = await _userManager.FindByNameAsync(input) ?? await _userManager.FindByEmailAsync(input);
+        if (user == null)
         {
-            ModelState.AddModelError(string.Empty, "Password reset by e-mail isn't set up yet. Ask your system administrator to reset your password.");
+            ModelState.AddModelError(nameof(model.UserNameOrEmail), "No account was found with this username or e-mail. Check the spelling and try again.");
             return View(model);
         }
 
-        var input = model.UserNameOrEmail.Trim();
-        var user = input.Contains('@') ? await _userManager.FindByEmailAsync(input) : await _userManager.FindByNameAsync(input);
-
-        // The same answer whether or not the account exists, so nobody can probe for usernames.
-        if (user != null && user.IsActive && !string.IsNullOrWhiteSpace(user.Email))
+        // 2. Can this account receive a reset link?
+        if (!user.IsActive)
         {
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var link = Url.Action(nameof(ResetPassword), "Account", new { userId = user.Id, token }, Request.Scheme)!;
-            var minutes = HttpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue("App:PasswordResetMinutes", 60);
-            var body =
-                $"<p>Hello {System.Net.WebUtility.HtmlEncode(user.FullName)},</p>" +
-                "<p>We received a request to reset your SAMA Training Center password. Click the link below to choose a new one:</p>" +
-                $"<p><a href=\"{System.Net.WebUtility.HtmlEncode(link)}\">Reset my password</a></p>" +
-                $"<p>This link expires in {minutes} minutes and can be used once. If you didn't ask for this, ignore this e-mail; your password stays the same.</p>";
-            try
-            {
-                await _email.SendAsync(user.Email!, "Reset your SAMA Training Center password", body);
-                _logger.LogInformation("Password reset link sent to user {User}.", user.UserName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Could not send the password reset e-mail.");
-                ModelState.AddModelError(string.Empty, "The reset e-mail couldn't be sent right now. Try again later or ask your system administrator.");
-                return View(model);
-            }
+            ModelState.AddModelError(string.Empty, "This account is deactivated. Ask your system administrator to reactivate it.");
+            return View(model);
         }
 
+        if (!HasDeliverableEmail(user.Email))
+        {
+            ModelState.AddModelError(string.Empty, "This account has no working e-mail address, so a reset link can't be sent. Ask your system administrator to add your e-mail under Users, or to reset your password.");
+            return View(model);
+        }
+
+        if (!_email.IsConfigured)
+        {
+            ModelState.AddModelError(string.Empty, "Your account was found, but sending e-mails isn't set up on the system yet. Ask your system administrator to reset your password.");
+            return View(model);
+        }
+
+        // 3. Send the link.
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var link = Url.Action(nameof(ResetPassword), "Account", new { userId = user.Id, token }, Request.Scheme)!;
+        var minutes = HttpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue("App:PasswordResetMinutes", 60);
+        var body =
+            $"<p>Hello {System.Net.WebUtility.HtmlEncode(user.FullName)},</p>" +
+            "<p>We received a request to reset your SAMA Training Center password. Click the link below to choose a new one:</p>" +
+            $"<p><a href=\"{System.Net.WebUtility.HtmlEncode(link)}\">Reset my password</a></p>" +
+            $"<p>This link expires in {minutes} minutes and can be used once. If you didn't ask for this, ignore this e-mail; your password stays the same.</p>";
+        try
+        {
+            await _email.SendAsync(user.Email!, "Reset your SAMA Training Center password", body);
+            _logger.LogInformation("Password reset link sent to user {User}.", user.UserName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not send the password reset e-mail.");
+            ModelState.AddModelError(string.Empty, "The reset e-mail couldn't be sent right now. Try again in a few minutes or ask your system administrator.");
+            return View(model);
+        }
+
+        ViewBag.SentTo = MaskEmail(user.Email!);
+        ViewBag.Minutes = minutes;
         return View("ForgotPasswordSent");
+    }
+
+    /// <summary>A real address: not empty and not a placeholder such as admin@sama.local.</summary>
+    private static bool HasDeliverableEmail(string? email) =>
+        !string.IsNullOrWhiteSpace(email) && email.Contains('@')
+        && !email.EndsWith(".local", StringComparison.OrdinalIgnoreCase)
+        && !email.EndsWith(".invalid", StringComparison.OrdinalIgnoreCase)
+        && !email.EndsWith("@example.com", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>"hiba.osman@gmail.com" → "hi*******@gmail.com".</summary>
+    private static string MaskEmail(string email)
+    {
+        var at = email.IndexOf('@');
+        if (at <= 0) return email;
+        var name = email[..at];
+        var keep = Math.Min(2, name.Length);
+        return name[..keep] + new string('*', Math.Max(3, name.Length - keep)) + email[at..];
     }
 
     [AllowAnonymous, HttpGet]

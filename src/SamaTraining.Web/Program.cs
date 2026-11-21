@@ -18,6 +18,8 @@ var privateSettingsDir = Environment.GetEnvironmentVariable("SAMA_SETTINGS_PATH"
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Configuration.AddJsonFile(Path.Combine(privateSettingsDir, "appsettings.Production.json"), optional: true, reloadOnChange: false);
+    // E-mail (SMTP) settings in their own file, so they can be added without touching the database settings.
+    builder.Configuration.AddJsonFile(Path.Combine(privateSettingsDir, "smtp.json"), optional: true, reloadOnChange: true);
 }
 
 // Keep login cookies valid across app restarts on shared hosting (keys stored beside the settings file).

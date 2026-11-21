@@ -17,7 +17,10 @@ public class SmtpSettings
     public string? FromAddress { get; set; }
     public string FromName { get; set; } = "SAMA Training Center";
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(FromAddress);
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(FromAddress)
+        && !FromAddress.Contains("PASTE_", StringComparison.Ordinal)
+        && !(Password ?? "").Contains("PASTE_", StringComparison.Ordinal);
 }
 
 public interface IEmailSender
@@ -28,9 +31,12 @@ public interface IEmailSender
 
 public class SmtpEmailSender : IEmailSender
 {
-    private readonly SmtpSettings _settings;
+    private readonly IOptionsMonitor<SmtpSettings> _monitor;
 
-    public SmtpEmailSender(IOptions<SmtpSettings> settings) => _settings = settings.Value;
+    // IOptionsMonitor: edits to private/smtp.json apply without restarting the site.
+    public SmtpEmailSender(IOptionsMonitor<SmtpSettings> settings) => _monitor = settings;
+
+    private SmtpSettings _settings => _monitor.CurrentValue;
 
     public bool IsConfigured => _settings.IsConfigured;
 
