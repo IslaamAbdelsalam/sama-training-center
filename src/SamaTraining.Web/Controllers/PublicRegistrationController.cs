@@ -74,6 +74,9 @@ public class PublicRegistrationController : Controller
             case WorkshopService.RegisterOutcome.Success:
                 // Post/Redirect/Get so a refresh does not resubmit.
                 return RedirectToAction(nameof(Done), new { token, lang = l });
+            case WorkshopService.RegisterOutcome.CancelledBefore:
+                model.Error = _text.Get("CancelledBefore", l);
+                return View(model);
             case WorkshopService.RegisterOutcome.Duplicate:
                 model.Error = _text.Get("Duplicate", l);
                 return View(model);

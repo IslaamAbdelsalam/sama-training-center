@@ -46,6 +46,7 @@ public class PublicText
         ["Daily"] = ("daily", "يومياً"),
         ["Location"] = ("Location", "المكان"),
         ["Type"] = ("Workshop type", "نوع الورشة"),
+        ["CancelledBefore"] = ("Your registration for this workshop was cancelled, so you can't register for it again. Please contact SAMA if you think this is a mistake.", "تم إلغاء تسجيلك في هذه الورشة، لذلك لا يمكنك التسجيل فيها مرة أخرى. يرجى التواصل مع سما إذا كان هناك خطأ."),
         ["Duplicate"] = ("You're already registered for this workshop with this email.", "أنت مسجل مسبقاً في هذه الورشة بهذا البريد الإلكتروني."),
         ["NotFoundTitle"] = ("Link not found", "الرابط غير موجود"),
         ["NotFoundBody"] = ("This registration link isn't valid. Please check the link you received.", "رابط التسجيل غير صالح. يرجى التحقق من الرابط الذي استلمته."),

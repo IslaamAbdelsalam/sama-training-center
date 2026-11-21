@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SamaTraining.Web.Data;
 using SamaTraining.Web.Security;
+using SamaTraining.Web.Services;
 
 namespace SamaTraining.Tests;
 
@@ -805,5 +806,99 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var report = await client.GetStringAsync($"/Reports?From={start.AddDays(-1):yyyy-MM-dd}&To={start.AddDays(1):yyyy-MM-dd}");
         Assert.Contains("100,000.00 EGP", report);
         Assert.Contains("Projected profit", report);
+    }
+
+    [Fact] // Cancel a registration: seat freed, not counted, shown as cancelled, can't re-register; undo can go over capacity
+    public async Task CancelRegistration_FreesSeat_BlocksReRegistration_AndUndoAlertsOverCapacity()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var save = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "One Seat Clinic", ["NameAr"] = "عيادة المقعد الواحد",
+            ["Date"] = DateTime.Today.AddDays(12).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "10:00",
+            ["Type"] = "Online", ["Country"] = "SD", ["Capacity"] = "1", ["Fee"] = "300"
+        }));
+        var detailsUrl = save.Headers.Location!.ToString();
+        var id = int.Parse(detailsUrl.Split('/').Last().Split('?')[0]);
+        var details = await client.GetStringAsync(detailsUrl);
+        await client.PostAsync("/Workshops/OpenRegistration", Form(details, new() { ["id"] = id.ToString() }));
+        var token = await _app.WithDbAsync(db => db.Workshops.Where(w => w.Id == id).Select(w => w.RegistrationToken!).SingleAsync());
+
+        var student = _app.CreateBrowser();
+        async Task<string> Register(string name, string email, string phone)
+        {
+            var p = await student.GetStringAsync($"/register/{token}?lang=en");
+            var res = await student.PostAsync($"/register/{token}?lang=en", Form(p, new() { ["FullName"] = name, ["Email"] = email, ["Phone"] = phone }));
+            return res.StatusCode == HttpStatusCode.Redirect ? "ok" : await res.Content.ReadAsStringAsync();
+        }
+
+        Assert.Equal("ok", await Register("Amna Ali", "amna@example.com", "249911000001"));
+        Assert.Contains("this workshop is full", await student.GetStringAsync($"/register/{token}?lang=en"));
+        var amnaId = await _app.WithDbAsync(db => db.Registrations.Where(r => r.Email == "amna@example.com" && r.WorkshopId == id).Select(r => r.Id).SingleAsync());
+
+        // Cancel Amna
+        details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
+        Assert.Contains("cancel-registration", details);
+        var cancel = await client.PostAsync("/Workshops/CancelRegistration", Form(details, new()
+        {
+            ["id"] = id.ToString(), ["registrationId"] = amnaId.ToString(), ["reason"] = "Travelling"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, cancel.StatusCode);
+        var amna = await _app.WithDbAsync(db => db.Registrations.SingleAsync(r => r.Id == amnaId));
+        Assert.True(amna.IsCancelled);
+        Assert.Equal("Travelling", amna.CancelReason);
+        Assert.Equal("admin", amna.CancelledBy);
+
+        // Shown as cancelled; not counted in finance (expected income 0)
+        details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
+        Assert.Contains("Cancelled", details);
+        Assert.Contains("0 registered · 1 cancelled", details);
+        var fin = (await _app.WithServicesAsync(sp => sp.GetRequiredService<FinanceService>().ForWorkshopsAsync(new[] { id })))[id];
+        Assert.Equal(0m, fin.ExpectedIncome);
+        Assert.Equal(0, fin.Participants);
+
+        // Same person can't register again (same phone, new email) — but someone else can take the freed seat
+        Assert.Contains("was cancelled", await Register("Amna Ali", "amna.new@example.com", "249911000001"));
+        Assert.Equal("ok", await Register("Badr Omer", "badr@example.com", "249911000002"));
+
+        // Badr pays → can't be cancelled
+        var badrId = await _app.WithDbAsync(db => db.Registrations.Where(r => r.Email == "badr@example.com").Select(r => r.Id).SingleAsync());
+        var payPage = await client.GetStringAsync($"/Collections/Create?workshopId={id}&registrationId={badrId}");
+        await client.PostAsync("/Collections/Save", Form(payPage, new()
+        {
+            ["Id"] = "0", ["WorkshopId"] = id.ToString(), ["RegistrationId"] = badrId.ToString(), ["Amount"] = "300",
+            ["CollectedOn"] = DateTime.Today.ToString("yyyy-MM-dd"), ["Method"] = "Cash"
+        }));
+        details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
+        await client.PostAsync("/Workshops/CancelRegistration", Form(details, new() { ["id"] = id.ToString(), ["registrationId"] = badrId.ToString() }));
+        Assert.False(await _app.WithDbAsync(db => db.Registrations.Where(r => r.Id == badrId).Select(r => r.IsCancelled).SingleAsync()));
+
+        // Undo Amna's cancellation → 2 participants for 1 seat: danger alert on the page and in the navbar bell
+        var undo = await client.PostAsync("/Workshops/RestoreRegistration", Form(details, new() { ["id"] = id.ToString(), ["registrationId"] = amnaId.ToString() }));
+        Assert.Equal(HttpStatusCode.Redirect, undo.StatusCode);
+        Assert.False(await _app.WithDbAsync(db => db.Registrations.Where(r => r.Id == amnaId).Select(r => r.IsCancelled).SingleAsync()));
+        details = await client.GetStringAsync(detailsUrl + "?tab=registrations");
+        Assert.Contains("Over capacity: 2 participants for 1 seats", details);
+        var dashboard = await client.GetStringAsync("/");
+        Assert.Contains("One Seat Clinic", dashboard);
+        Assert.Contains("Over capacity: 2 participants for 1 seats", dashboard);
+
+        var history = await client.GetStringAsync(detailsUrl + "?tab=history");
+        Assert.Contains("Registration cancelled: Amna Ali — Travelling", history);
+        Assert.Contains("Cancellation undone: Amna Ali", history);
+    }
+
+    [Fact] // Cancelling is for coordinators (workshop admins) and administrators, not finance officers
+    public async Task CancelRegistration_FollowsPermissions()
+    {
+        var finance = await _app.SignedInUserAsync("fin.cancel", Roles.Finance);
+        var page = await finance.GetStringAsync("/");
+        var res = await finance.PostAsync("/Workshops/CancelRegistration", Form(page, new() { ["id"] = "1", ["registrationId"] = "1" }));
+        Assert.True(res.StatusCode is HttpStatusCode.Redirect or HttpStatusCode.Forbidden);
+        if (res.StatusCode == HttpStatusCode.Redirect) Assert.Contains("AccessDenied", res.Headers.Location!.ToString());
+
+        var coordinator = await _app.SignedInUserAsync("coord.cancel", Roles.Coordinator);
+        Assert.Contains("Alerts", await coordinator.GetStringAsync("/"));
     }
 }

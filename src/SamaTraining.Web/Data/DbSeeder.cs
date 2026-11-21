@@ -49,20 +49,23 @@ public static class DbSeeder
             }
         }
 
-        // One-time grant of permissions added in version 2 (fee collections) to existing default roles.
+        // One-time grants of permissions added in later versions to existing default roles.
         const string seedMarker = "seed-version";
-        foreach (var (roleName, added) in Roles.AddedInV2)
+        foreach (var (version, grants) in Roles.AddedLater)
         {
-            var role = await roleManager.FindByNameAsync(roleName);
-            if (role == null) continue;
-            var claims = await roleManager.GetClaimsAsync(role);
-            if (claims.Any(c => c.Type == seedMarker && c.Value == "2")) continue;
-            var have = claims.Where(c => c.Type == Permissions.ClaimType).Select(c => c.Value).ToHashSet();
-            foreach (var p in added.Where(p => !have.Contains(p)))
+            foreach (var (roleName, added) in grants)
             {
-                await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(Permissions.ClaimType, p));
+                var role = await roleManager.FindByNameAsync(roleName);
+                if (role == null) continue;
+                var claims = await roleManager.GetClaimsAsync(role);
+                if (claims.Any(c => c.Type == seedMarker && c.Value == version)) continue;
+                var have = claims.Where(c => c.Type == Permissions.ClaimType).Select(c => c.Value).ToHashSet();
+                foreach (var p in added.Where(p => !have.Contains(p)))
+                {
+                    await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(Permissions.ClaimType, p));
+                }
+                await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(seedMarker, version));
             }
-            await roleManager.AddClaimAsync(role, new System.Security.Claims.Claim(seedMarker, "2"));
         }
 
         // The Administrator role always keeps every permission, including ones added in later versions.

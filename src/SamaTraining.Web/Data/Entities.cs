@@ -40,7 +40,9 @@ public enum WorkshopHistoryAction
     StatusChanged = 0,
     RegistrationOpened = 1,
     RegistrationClosed = 2,
-    LinkRegenerated = 3
+    LinkRegenerated = 3,
+    ParticipantCancelled = 4,
+    ParticipantRestored = 5
 }
 
 /// <summary>How a registration fee was paid (US-18).</summary>
@@ -215,6 +217,10 @@ public class WorkshopStatusHistory
 
     public WorkshopHistoryAction Action { get; set; } = WorkshopHistoryAction.StatusChanged;
 
+    /// <summary>Extra detail, e.g. the participant's name for a cancellation.</summary>
+    [MaxLength(300)]
+    public string? Note { get; set; }
+
     public WorkshopStatus FromStatus { get; set; }
     public WorkshopStatus ToStatus { get; set; }
 
@@ -250,6 +256,19 @@ public class Registration
     public string Language { get; set; } = "en";
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// A cancelled registration frees its seat and is left out of every count and money figure,
+    /// but stays on the list (marked Cancelled) so the same person can't register again for this workshop.
+    /// </summary>
+    public bool IsCancelled { get; set; }
+    public DateTime? CancelledAt { get; set; }
+
+    [MaxLength(256)]
+    public string? CancelledBy { get; set; }
+
+    [MaxLength(250)]
+    public string? CancelReason { get; set; }
 
     public ICollection<FeeCollection> Collections { get; set; } = new List<FeeCollection>();
 }

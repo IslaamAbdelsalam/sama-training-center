@@ -43,7 +43,7 @@ public class ReportService
             .Select(w => new
             {
                 w.Id, w.Name, w.StartDateTime, w.EndDateTime, w.Fee, w.Country, w.CurrencyCode, w.Type, w.Status, w.Capacity,
-                Registrations = w.Registrations.Count
+                Registrations = w.Registrations.Count(r => !r.IsCancelled)
             })
             .ToListAsync();
 
@@ -56,7 +56,7 @@ public class ReportService
             .ToListAsync();
 
         var registrationDates = await _db.Registrations.AsNoTracking()
-            .Where(r => ids.Contains(r.WorkshopId))
+            .Where(r => ids.Contains(r.WorkshopId) && !r.IsCancelled)
             .Select(r => r.RegisteredAt)
             .ToListAsync();
 

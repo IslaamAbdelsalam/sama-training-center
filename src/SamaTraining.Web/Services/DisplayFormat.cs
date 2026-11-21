@@ -86,6 +86,8 @@ public static class DisplayFormat
         WorkshopHistoryAction.RegistrationOpened => "Registration opened",
         WorkshopHistoryAction.RegistrationClosed => "Registration closed",
         WorkshopHistoryAction.LinkRegenerated => "New registration link created",
+        WorkshopHistoryAction.ParticipantCancelled => "Registration cancelled",
+        WorkshopHistoryAction.ParticipantRestored => "Cancellation undone",
         _ => "Status changed"
     };
 }

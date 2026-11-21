@@ -194,24 +194,44 @@
                         }
                         else
                         {
+                            var canCancel = User.Can(Permissions.RegistrationsCancel) && w.Status != WorkshopStatus.Completed;
+                            @if (Model.OverCapacity)
+                            {
+                                <div class="alert alert-danger d-flex gap-3 align-items-start mx-5 mt-4 mb-0" role="alert">
+                                    <i class="icon-base ri ri-error-warning-line icon-22px"></i>
+                                    <div>
+                                        <strong>Over capacity: @Model.RegistrationCount participants for @w.Capacity seats.</strong>
+                                        <div class="small">A cancellation was undone after the seat was taken. Increase the capacity (Edit) or cancel a registration.</div>
+                                    </div>
+                                </div>
+                            }
                             <div class="d-flex justify-content-between align-items-center px-5 pt-4 pb-2">
-                                <span class="text-body-secondary small">@Model.RegistrationCount registered</span>
+                                <span class="text-body-secondary small">@Model.RegistrationCount registered@(Model.CancelledCount > 0 ? " · " + Model.CancelledCount + " cancelled" : "")</span>
                                 <a asp-action="ExportRegistrations" asp-route-id="@w.Id" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-download-2-line me-1"></i>Export to Excel (CSV)</a>
                             </div>
                             <div class="table-responsive">
                                 <table class="table">
-                                    <thead><tr><th>Participant</th><th>Phone</th><th>Organization</th><th>Registered</th>@if (showPayments) { <th>Payment</th> }</tr></thead>
+                                    <thead><tr><th>Participant</th><th>Phone</th><th>Organization</th><th>Registered</th>@if (showPayments) { <th>Payment</th> }@if (canCancel) { <th></th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
                                     @foreach (var r in Model.Registrations)
                                     {
-                                        <tr>
+                                        var hasPaid = Model.PaidRegistrationIds.Contains(r.Id);
+                                        <tr class="@(r.IsCancelled ? "row-cancelled" : "") @(highlight == "r" + r.Id ? "row-highlight" : "")">
                                             <td>
-                                                <div class="fw-medium text-heading">@r.FullName @if (r.Language == "ar") { <span class="badge bg-label-secondary ms-1">AR</span> }</div>
+                                                <div class="fw-medium text-heading">
+                                                    @r.FullName
+                                                    @if (r.Language == "ar") { <span class="badge bg-label-secondary ms-1">AR</span> }
+                                                    @if (r.IsCancelled) { <span class="badge bg-label-danger ms-1">Cancelled</span> }
+                                                </div>
                                                 <small><a href="mailto:@r.Email">@r.Email</a></small>
+                                                @if (r.IsCancelled)
+                                                {
+                                                    <small class="d-block text-body-secondary mt-1">Cancelled @r.CancelledAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm") by @r.CancelledBy@(string.IsNullOrEmpty(r.CancelReason) ? "" : " — " + r.CancelReason)</small>
+                                                }
                                             </td>
                                             <td class="text-nowrap">
                                                 <span dir="ltr">@Phones.Format(r.Phone)</span>
-                                                @if (Model.EarlierWorkshopsByPhone.TryGetValue(r.Phone, out var earlier))
+                                                @if (!r.IsCancelled && Model.EarlierWorkshopsByPhone.TryGetValue(r.Phone, out var earlier))
                                                 {
                                                     <span class="badge bg-label-info d-block mt-1" title="Same phone number registered for @earlier other workshop(s)"><i class="icon-base ri ri-repeat-line me-1"></i>Returning · @earlier</span>
                                                 }
@@ -220,14 +240,49 @@
                                             <td class="text-nowrap small">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
                                             @if (showPayments)
                                             {
-                                                var paid = Model.PaidByRegistration.GetValueOrDefault(r.Id);
-                                                var ps = FinanceService.StatusOf(w.Fee, paid);
-                                                <td class="text-nowrap">
-                                                    <span class="badge @DisplayFormat.BadgeCss(ps)">@DisplayFormat.Label(ps)</span>
-                                                    <small class="d-block text-body-secondary mt-1">@paid.ToString("N2") / @w.Fee!.Value.ToString("N2")</small>
-                                                    @if (canCollect && ps != PaymentStatus.Paid)
+                                                if (r.IsCancelled)
+                                                {
+                                                    <td class="small text-body-secondary">Not counted</td>
+                                                }
+                                                else
+                                                {
+                                                    var paid = Model.PaidByRegistration.GetValueOrDefault(r.Id);
+                                                    var ps = FinanceService.StatusOf(w.Fee, paid);
+                                                    <td class="text-nowrap">
+                                                        <span class="badge @DisplayFormat.BadgeCss(ps)">@DisplayFormat.Label(ps)</span>
+                                                        <small class="d-block text-body-secondary mt-1">@paid.ToString("N2") / @w.Fee!.Value.ToString("N2")</small>
+                                                        @if (canCollect && ps != PaymentStatus.Paid)
+                                                        {
+                                                            <a asp-controller="Collections" asp-action="Create" asp-route-workshopId="@w.Id" asp-route-registrationId="@r.Id" class="small">Record payment</a>
+                                                        }
+                                                    </td>
+                                                }
+                                            }
+                                            @if (canCancel)
+                                            {
+                                                <td class="text-end text-nowrap">
+                                                    @if (r.IsCancelled)
                                                     {
-                                                        <a asp-controller="Collections" asp-action="Create" asp-route-workshopId="@w.Id" asp-route-registrationId="@r.Id" class="small">Record payment</a>
+                                                        <form asp-action="RestoreRegistration" method="post" class="d-inline"
+                                                              data-confirm="@r.FullName will be registered again and count toward seats and fees.@(w.Capacity.HasValue && Model.RegistrationCount >= w.Capacity ? " All seats are taken, so the workshop will go over capacity and administrators will be alerted." : "")"
+                                                              data-confirm-title="Undo this cancellation?" data-confirm-button="Undo cancellation">
+                                                            <input type="hidden" name="id" value="@w.Id" />
+                                                            <input type="hidden" name="registrationId" value="@r.Id" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary" data-loading-text="Restoring…"><i class="icon-base ri ri-arrow-go-back-line me-1"></i>Undo</button>
+                                                        </form>
+                                                    }
+                                                    else if (hasPaid)
+                                                    {
+                                                        <span class="d-inline-block" tabindex="0" title="Paid participants can't be cancelled">
+                                                            <button type="button" class="btn btn-sm btn-text-secondary" disabled><i class="icon-base ri ri-user-forbid-line me-1"></i>Cancel</button>
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-text-danger" data-bs-toggle="modal" data-bs-target="#cancel-registration"
+                                                                data-registration-id="@r.Id" data-registration-name="@r.FullName">
+                                                            <i class="icon-base ri ri-user-forbid-line me-1"></i>Cancel
+                                                        </button>
                                                     }
                                                 </td>
                                             }
@@ -388,7 +443,7 @@
                                     }
                                     else
                                     {
-                                        <div class="fw-medium">@DisplayFormat.Label(h.Action)</div>
+                                        <div class="fw-medium">@DisplayFormat.Label(h.Action)@(string.IsNullOrEmpty(h.Note) ? "" : ": " + h.Note)</div>
                                     }
                                     <small class="text-body-secondary">@h.ChangedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(h.ChangedBy ?? "—")</small>
                                 </li>
@@ -539,3 +594,43 @@
         </div>
     </div>
 </div>
+
+@if (User.Can(Permissions.RegistrationsCancel) && w.Status != WorkshopStatus.Completed)
+{
+    <div class="modal fade" id="cancel-registration" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-action="CancelRegistration" method="post" class="modal-content">
+                <input type="hidden" name="id" value="@w.Id" />
+                <input type="hidden" name="registrationId" id="cancel-registration-id" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Cancel <span id="cancel-registration-name"></span>'s registration?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="small text-body-secondary ps-4 mb-4">
+                        <li>The seat becomes available to others.</li>
+                        <li>They stop counting in participants and fees.</li>
+                        <li>They stay on the list as Cancelled and can't register for this workshop again.</li>
+                        <li>You can undo this later.</li>
+                    </ul>
+                    <div class="form-floating form-floating-outline">
+                        <input name="reason" id="cancel-reason" class="form-control" maxlength="250" placeholder="Reason" />
+                        <label for="cancel-reason">Reason (optional)</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep registration</button>
+                    <button type="submit" class="btn btn-danger" data-loading-text="Cancelling…">Cancel registration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.getElementById('cancel-registration')?.addEventListener('show.bs.modal', function (e) {
+            var b = e.relatedTarget;
+            document.getElementById('cancel-registration-id').value = b.getAttribute('data-registration-id');
+            document.getElementById('cancel-registration-name').textContent = b.getAttribute('data-registration-name');
+            document.getElementById('cancel-reason').value = '';
+        });
+    </script>
+}

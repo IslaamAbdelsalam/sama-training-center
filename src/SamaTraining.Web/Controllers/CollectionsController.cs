@@ -76,9 +76,9 @@ public class CollectionsController : AppController
         if (Blocked(w) is { } blocked) return blocked;
 
         if (model.RegistrationId.HasValue
-            && !await _db.Registrations.AnyAsync(r => r.Id == model.RegistrationId && r.WorkshopId == w.Id))
+            && !await _db.Registrations.AnyAsync(r => r.Id == model.RegistrationId && r.WorkshopId == w.Id && !r.IsCancelled))
         {
-            ModelState.AddModelError(nameof(model.RegistrationId), "Choose a participant registered for this workshop.");
+            ModelState.AddModelError(nameof(model.RegistrationId), "Choose an active participant registered for this workshop (cancelled registrations can't pay).");
         }
 
         if (!ModelState.IsValid)
@@ -158,7 +158,7 @@ public class CollectionsController : AppController
                 .Select(c => new { c.RegistrationId, c.Amount }).ToListAsync())
             .GroupBy(c => c.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(c => c.Amount));
 
-        model.Participants = (await _db.Registrations.Where(r => r.WorkshopId == w.Id).OrderBy(r => r.FullName)
+        model.Participants = (await _db.Registrations.Where(r => r.WorkshopId == w.Id && !r.IsCancelled).OrderBy(r => r.FullName)
                 .Select(r => new { r.Id, r.FullName, r.Phone }).ToListAsync())
             .Select(r =>
             {

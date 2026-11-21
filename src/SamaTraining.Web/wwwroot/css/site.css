@@ -281,3 +281,9 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 .cc-target strong { color: var(--bs-heading-color); font-weight: 600; }
 .cc-foot { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; font-size: .8rem; color: var(--bs-secondary-color); border-top: 1px solid var(--bs-border-color); padding-top: .75rem; }
 .cc-foot b { color: var(--bs-heading-color); font-weight: 600; }
+
+/* ---- Cancelled registrations ---- */
+.row-cancelled td { background: rgba(var(--bs-danger-rgb), .035); }
+.row-cancelled .fw-medium, .row-cancelled td:not(:last-child) { color: var(--bs-secondary-color) !important; }
+.row-cancelled .fw-medium { text-decoration: line-through; text-decoration-color: rgba(var(--bs-danger-rgb), .5); }
+.row-cancelled .badge { text-decoration: none; }

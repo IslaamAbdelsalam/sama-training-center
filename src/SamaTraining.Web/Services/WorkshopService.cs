@@ -202,15 +202,95 @@ public class WorkshopService
         Duplicate,
 
         /// <summary>This phone number is already registered for the workshop.</summary>
-        DuplicatePhone
+        DuplicatePhone,
+
+        /// <summary>This person's registration for the workshop was cancelled; they can't register again.</summary>
+        CancelledBefore
+    }
+
+    /// <summary>Result of cancelling or restoring a registration.</summary>
+    public record ParticipantChange(bool Success, string? Error = null, string? Name = null, bool OverCapacity = false, int Active = 0, int? Capacity = null);
+
+    /// <summary>
+    /// Cancels a registration: its seat becomes free and it no longer counts anywhere (seats, participants, money),
+    /// but it stays on the list so the same person can't register for this workshop again.
+    /// Not allowed once the participant has paid, or after the workshop is completed.
+    /// </summary>
+    public async Task<ParticipantChange> CancelRegistrationAsync(int registrationId, string? userName, string? reason)
+    {
+        var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
+        if (r == null) return new ParticipantChange(false, "Registration not found.");
+        if (r.IsCancelled) return new ParticipantChange(true, Name: r.FullName);
+        if (r.Workshop!.Status == WorkshopStatus.Completed)
+            return new ParticipantChange(false, "The workshop is completed, so its participants can't change.", r.FullName);
+        if (await _db.FeeCollections.AnyAsync(c => c.RegistrationId == r.Id))
+            return new ParticipantChange(false, $"{r.FullName} has paid, so the registration can't be cancelled. Delete the payment first if it was recorded by mistake.", r.FullName);
+
+        var now = DateTime.UtcNow;
+        r.IsCancelled = true;
+        r.CancelledAt = now;
+        r.CancelledBy = userName;
+        r.CancelReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        _db.WorkshopStatusHistory.Add(new WorkshopStatusHistory
+        {
+            WorkshopId = r.WorkshopId, Action = WorkshopHistoryAction.ParticipantCancelled,
+            FromStatus = r.Workshop.Status, ToStatus = r.Workshop.Status, ChangedBy = userName, ChangedAt = now,
+            Note = r.FullName + (r.CancelReason == null ? "" : " — " + r.CancelReason)
+        });
+        await _db.SaveChangesAsync();
+        return new ParticipantChange(true, Name: r.FullName);
+    }
+
+    /// <summary>
+    /// Undoes a cancellation made by mistake. Always allowed (before completion), even when the seat was taken
+    /// meanwhile: the result then reports OverCapacity so an administrator can sort it out.
+    /// </summary>
+    public async Task<ParticipantChange> RestoreRegistrationAsync(int registrationId, string? userName)
+    {
+        var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
+        if (r == null) return new ParticipantChange(false, "Registration not found.");
+        if (r.Workshop!.Status == WorkshopStatus.Completed)
+            return new ParticipantChange(false, "The workshop is completed, so its participants can't change.", r.FullName);
+
+        if (r.IsCancelled)
+        {
+            var now = DateTime.UtcNow;
+            r.IsCancelled = false;
+            r.CancelledAt = null;
+            r.CancelledBy = null;
+            r.CancelReason = null;
+            _db.WorkshopStatusHistory.Add(new WorkshopStatusHistory
+            {
+                WorkshopId = r.WorkshopId, Action = WorkshopHistoryAction.ParticipantRestored,
+                FromStatus = r.Workshop.Status, ToStatus = r.Workshop.Status, ChangedBy = userName, ChangedAt = now, Note = r.FullName
+            });
+            await _db.SaveChangesAsync();
+        }
+
+        var active = await CountRegistrationsAsync(r.WorkshopId);
+        var over = r.Workshop.Capacity.HasValue && active > r.Workshop.Capacity.Value;
+        return new ParticipantChange(true, Name: r.FullName, OverCapacity: over, Active: active, Capacity: r.Workshop.Capacity);
+    }
+
+    /// <summary>Workshops (not completed) with more active participants than seats — shown to administrators as alerts.</summary>
+    public async Task<List<(int Id, string Name, int Active, int Capacity)>> OverCapacityAsync()
+    {
+        var rows = await _db.Workshops.AsNoTracking()
+            .Where(w => w.Status != WorkshopStatus.Completed && w.Capacity != null)
+            .Select(w => new { w.Id, w.Name, Capacity = w.Capacity!.Value, Active = w.Registrations.Count(r => !r.IsCancelled) })
+            .Where(x => x.Active > x.Capacity)
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+        return rows.Select(x => (x.Id, x.Name, x.Active, x.Capacity)).ToList();
     }
 
     public Task<Workshop?> FindByTokenAsync(string token) =>
         _db.Workshops.Include(w => w.Hall)
             .FirstOrDefaultAsync(w => w.RegistrationToken == token);
 
+    /// <summary>Active (not cancelled) registrations: the seats taken.</summary>
     public async Task<int> CountRegistrationsAsync(int workshopId) =>
-        await _db.Registrations.CountAsync(r => r.WorkshopId == workshopId);
+        await _db.Registrations.CountAsync(r => r.WorkshopId == workshopId && !r.IsCancelled);
 
     public async Task<RegisterOutcome> RegisterAsync(string token, Registration input)
     {
@@ -243,6 +323,12 @@ public class WorkshopService
                 return RegisterOutcome.Closed;
             }
 
+            // A cancelled registration still blocks the same person (email or phone) from registering again.
+            if (await _db.Registrations.AnyAsync(r => r.WorkshopId == current.Id && r.IsCancelled && (r.Email == email || r.Phone == phone)))
+            {
+                return RegisterOutcome.CancelledBefore;
+            }
+
             if (await _db.Registrations.AnyAsync(r => r.WorkshopId == current.Id && r.Email == email))
             {
                 return RegisterOutcome.Duplicate;
@@ -253,7 +339,8 @@ public class WorkshopService
                 return RegisterOutcome.DuplicatePhone;
             }
 
-            if (current.Capacity.HasValue && await _db.Registrations.CountAsync(r => r.WorkshopId == current.Id) >= current.Capacity.Value)
+            // Cancelled registrations free their seats.
+            if (current.Capacity.HasValue && await _db.Registrations.CountAsync(r => r.WorkshopId == current.Id && !r.IsCancelled) >= current.Capacity.Value)
             {
                 return RegisterOutcome.Full;
             }

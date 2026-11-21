@@ -67,7 +67,7 @@ public class FinanceService
         }
 
         // Small data: loaded and summed in memory, which works the same on every database provider.
-        var ws = await workshops.Select(w => new { w.Id, w.CurrencyCode, w.Fee, w.Capacity, Students = w.Registrations.Count }).ToListAsync();
+        var ws = await workshops.Select(w => new { w.Id, w.CurrencyCode, w.Fee, w.Capacity, Students = w.Registrations.Count(r => !r.IsCancelled) }).ToListAsync();
         var ex = (await expenses.Select(e => new { e.WorkshopId, e.Amount }).ToListAsync())
             .GroupBy(e => e.WorkshopId).ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
         var co = (await collections.Select(c => new { c.WorkshopId, c.Amount }).ToListAsync())

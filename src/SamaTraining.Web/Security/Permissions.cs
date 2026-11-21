@@ -17,6 +17,7 @@ public static class Permissions
     public const string WorkshopsReverseStatus = "Workshops.ReverseStatus";
     public const string RegistrationsManage = "Registrations.Manage";
     public const string RegistrationsView = "Registrations.View";
+    public const string RegistrationsCancel = "Registrations.Cancel";
     public const string ExpensesView = "Expenses.View";
     public const string ExpensesManage = "Expenses.Manage";
     public const string CollectionsView = "Collections.View";
@@ -37,6 +38,7 @@ public static class Permissions
         new(WorkshopsReverseStatus, "Workshops", "Reverse a workshop status (undo start or completion)"),
         new(RegistrationsManage, "Registrations", "Open/close registration and share the link"),
         new(RegistrationsView, "Registrations", "View registered students"),
+        new(RegistrationsCancel, "Registrations", "Cancel a participant's registration (frees the seat) or undo a cancellation"),
         new(ExpensesView, "Expenses", "View workshop expenses"),
         new(ExpensesManage, "Expenses", "Add, edit and delete expenses"),
         new(CollectionsView, "Finance", "View fee collections, income and profit"),
@@ -62,7 +64,7 @@ public static class Roles
         {
             Permissions.DashboardView, Permissions.WorkshopsView, Permissions.WorkshopsManage,
             Permissions.WorkshopsChangeStatus, Permissions.RegistrationsManage, Permissions.RegistrationsView,
-            Permissions.ExpensesView, Permissions.ReportsView, Permissions.CollectionsView
+            Permissions.ExpensesView, Permissions.ReportsView, Permissions.CollectionsView, Permissions.RegistrationsCancel
         },
         [Finance] = new[]
         {
@@ -75,9 +77,17 @@ public static class Roles
     /// Permissions added in later versions, granted once to existing roles that should have them by default.
     /// After that, administrators decide (removing one from a role is respected).
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, string[]> AddedInV2 = new Dictionary<string, string[]>
+    public static readonly IReadOnlyList<(string Version, IReadOnlyDictionary<string, string[]> Grants)> AddedLater = new[]
     {
-        [Coordinator] = new[] { Permissions.CollectionsView },
-        [Finance] = new[] { Permissions.CollectionsView, Permissions.CollectionsManage, Permissions.RegistrationsView },
+        ("2", (IReadOnlyDictionary<string, string[]>)new Dictionary<string, string[]>
+        {
+            [Coordinator] = new[] { Permissions.CollectionsView },
+            [Finance] = new[] { Permissions.CollectionsView, Permissions.CollectionsManage, Permissions.RegistrationsView },
+        }),
+        // Cancelling registrations: workshop coordinators (and the Administrator, who has everything).
+        ("3", new Dictionary<string, string[]>
+        {
+            [Coordinator] = new[] { Permissions.RegistrationsCancel },
+        }),
     };
 }

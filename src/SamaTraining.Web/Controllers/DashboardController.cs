@@ -45,7 +45,7 @@ public class DashboardController : AppController
             Ongoing = counts.FirstOrDefault(c => c.Status == WorkshopStatus.Ongoing)?.Count ?? 0,
             Completed = counts.FirstOrDefault(c => c.Status == WorkshopStatus.Completed)?.Count ?? 0,
             OpenRegistrations = await _db.Workshops.CountAsync(w => w.RegistrationOpen),
-            TotalRegistrations = await _db.Registrations.CountAsync(),
+            TotalRegistrations = await _db.Registrations.CountAsync(r => !r.IsCancelled),
             ShowExpenses = User.Can(Permissions.ExpensesView),
             ShowIncome = User.Can(Permissions.CollectionsView),
             Upcoming = await _db.Workshops
@@ -59,7 +59,7 @@ public class DashboardController : AppController
         // ---- Everything grouped by currency (SDG, EGP), exactly as entered: no conversion. ----
         // Small data, so it is loaded and summed in memory (works on every database provider).
         var workshops = await _db.Workshops
-            .Select(w => new { w.Id, w.CurrencyCode, w.Status, Students = w.Registrations.Count })
+            .Select(w => new { w.Id, w.CurrencyCode, w.Status, Students = w.Registrations.Count(r => !r.IsCancelled) })
             .ToListAsync();
 
         // Users without expense permission get no amounts (the query returns nothing).

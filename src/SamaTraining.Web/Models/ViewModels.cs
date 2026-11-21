@@ -278,6 +278,15 @@ public class WorkshopDetailsViewModel
     public List<WorkshopExpense> Expenses { get; set; } = new();
     public List<Registration> Registrations { get; set; } = new();
 
+    /// <summary>Registrations with at least one payment: these can't be cancelled.</summary>
+    public HashSet<int> PaidRegistrationIds { get; set; } = new();
+
+    /// <summary>Cancelled registrations on the list (not counted anywhere).</summary>
+    public int CancelledCount { get; set; }
+
+    /// <summary>More active participants than seats (after restoring a cancellation).</summary>
+    public bool OverCapacity { get; set; }
+
     /// <summary>Phone → number of OTHER workshops this phone registered for (returning students).</summary>
     public Dictionary<string, int> EarlierWorkshopsByPhone { get; set; } = new();
     public List<WorkshopStatusHistory> History { get; set; } = new();

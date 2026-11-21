@@ -60,7 +60,7 @@ public class WorkshopsController : AppController
                 HallName = w.Hall != null ? w.Hall.Name : null,
                 Status = w.Status,
                 RegistrationOpen = w.RegistrationOpen,
-                Registrations = w.Registrations.Count
+                Registrations = w.Registrations.Count(r => !r.IsCancelled)
             })
             .ToListAsync();
 
@@ -94,12 +94,17 @@ public class WorkshopsController : AppController
 
         if (User.Can(Permissions.RegistrationsView))
         {
-            model.Registrations = await _db.Registrations.Where(r => r.WorkshopId == id).OrderByDescending(r => r.RegisteredAt).ToListAsync();
+            // Active first (newest first), then cancelled ones at the bottom.
+            model.Registrations = await _db.Registrations.Where(r => r.WorkshopId == id)
+                .OrderBy(r => r.IsCancelled).ThenByDescending(r => r.RegisteredAt).ToListAsync();
+            model.CancelledCount = model.Registrations.Count(r => r.IsCancelled);
+            model.PaidRegistrationIds = (await _db.FeeCollections.Where(c => c.WorkshopId == id).Select(c => c.RegistrationId).Distinct().ToListAsync()).ToHashSet();
+            model.OverCapacity = workshop.Capacity.HasValue && model.RegistrationCount > workshop.Capacity.Value;
 
             // Returning students: same phone number registered for other workshops.
             var phones = model.Registrations.Select(r => r.Phone).Distinct().ToList();
             model.EarlierWorkshopsByPhone = (await _db.Registrations
-                    .Where(r => r.WorkshopId != id && phones.Contains(r.Phone))
+                    .Where(r => r.WorkshopId != id && !r.IsCancelled && phones.Contains(r.Phone))
                     .Select(r => new { r.Phone, r.WorkshopId })
                     .ToListAsync())
                 .GroupBy(r => r.Phone)
@@ -317,6 +322,35 @@ public class WorkshopsController : AppController
         return RedirectToAction(nameof(Details), new { id, tab = "history" });
     }
 
+    // Cancel a participant's registration: the seat becomes free, the person can't register again for this workshop.
+    [HttpPost, HasPermission(Permissions.RegistrationsCancel)]
+    public async Task<IActionResult> CancelRegistration(int id, int registrationId, string? reason)
+    {
+        var result = await _service.CancelRegistrationAsync(registrationId, CurrentUserName, reason);
+        if (result.Success)
+        {
+            Success("Registration cancelled", $"{result.Name}'s seat is free again. They can't register for this workshop again; use Undo if this was a mistake.");
+            Highlight("r" + registrationId);
+        }
+        else Error("Can't cancel", result.Error);
+        return RedirectToAction(nameof(Details), new { id, tab = "registrations" });
+    }
+
+    // Undo a cancellation made by mistake. Allowed even if the seats are taken; then a danger alert is raised.
+    [HttpPost, HasPermission(Permissions.RegistrationsCancel)]
+    public async Task<IActionResult> RestoreRegistration(int id, int registrationId)
+    {
+        var result = await _service.RestoreRegistrationAsync(registrationId, CurrentUserName);
+        if (!result.Success) Error("Can't undo the cancellation", result.Error);
+        else if (result.OverCapacity)
+            Error("Workshop is over capacity",
+                $"{result.Name} is registered again, but the workshop now has {result.Active} participants for {result.Capacity} seats. " +
+                "An administrator needs to increase the capacity or cancel a registration.");
+        else Success("Cancellation undone", $"{result.Name} is registered again and counts toward seats and fees.");
+        Highlight("r" + registrationId);
+        return RedirectToAction(nameof(Details), new { id, tab = "registrations" });
+    }
+
     // US-10: reverse a mistaken status change (Ongoing → Pending, Completed → Ongoing)
     [HttpPost, HasPermission(Permissions.WorkshopsReverseStatus)]
     public async Task<IActionResult> ReverseStatus(int id, WorkshopStatus target)
@@ -362,21 +396,26 @@ public class WorkshopsController : AppController
         var w = await _db.Workshops.FindAsync(id);
         if (w == null) return NotFound();
 
-        var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.RegisteredAt).ToListAsync();
+        var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.IsCancelled).ThenBy(r => r.RegisteredAt).ToListAsync();
         var sb = new StringBuilder();
         var showMoney = User.Can(Permissions.CollectionsView) && !w.IsFree;
         var paid = showMoney
             ? (await _db.FeeCollections.Where(c => c.WorkshopId == id).Select(c => new { c.RegistrationId, c.Amount }).ToListAsync())
                 .GroupBy(c => c.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(c => c.Amount))
             : new Dictionary<int, decimal>();
-        sb.Append("Full name,Email,Phone,Organization,Notes,Language,Registered at (UTC)");
+        sb.Append("Full name,Email,Phone,Organization,Notes,Language,Registered at (UTC),Status,Cancelled at (UTC),Cancelled by,Cancel reason");
         sb.AppendLine(showMoney ? $",Fee ({w.CurrencyCode}),Paid ({w.CurrencyCode}),Outstanding ({w.CurrencyCode}),Payment status" : "");
         var phoneFormat = HttpContext.RequestServices.GetRequiredService<PhoneNumberService>();
         foreach (var r in rows)
         {
             sb.Append(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(phoneFormat.Format(r.Phone)), Csv(r.Organization),
-                Csv(r.Notes), r.Language, r.RegisteredAt.ToString("yyyy-MM-dd HH:mm")));
-            if (showMoney)
+                Csv(r.Notes), r.Language, r.RegisteredAt.ToString("yyyy-MM-dd HH:mm"),
+                r.IsCancelled ? "Cancelled" : "Active", r.CancelledAt?.ToString("yyyy-MM-dd HH:mm") ?? "", Csv(r.CancelledBy), Csv(r.CancelReason)));
+            if (showMoney && r.IsCancelled)
+            {
+                sb.Append(",,,,Cancelled");
+            }
+            else if (showMoney)
             {
                 var p = paid.GetValueOrDefault(r.Id);
                 sb.Append($",{w.Fee:0.00},{p:0.00},{(w.Fee ?? 0) - p:0.00},{DisplayFormat.Label(FinanceService.StatusOf(w.Fee, p))}");
