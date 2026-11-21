@@ -26,8 +26,8 @@ public class ReportsController : AppController
 
         if (!User.Can(Permissions.CollectionsView))
         {
-            foreach (var s in model.Summaries) { s.ExpectedIncome = 0; s.Collected = 0; }
-            foreach (var r in model.Rows) { r.ExpectedIncome = 0; r.Collected = 0; }
+            foreach (var s in model.Summaries) { s.ExpectedIncome = 0; s.Collected = 0; s.TargetIncome = 0; }
+            foreach (var r in model.Rows) { r.ExpectedIncome = 0; r.Collected = 0; r.TargetIncome = 0; }
         }
 
         ViewBag.ShowMoney = User.Can(Permissions.ExpensesView);
@@ -44,18 +44,18 @@ public class ReportsController : AppController
         var sb = new StringBuilder();
         sb.Append("Workshop,Start date,End date,Country,Type,Status,Registrations,Capacity,Fill %");
         sb.Append(showMoney || showIncome ? ",Currency" : "");
-        sb.Append(showIncome ? ",Fee,Expected income,Collected,Outstanding" : "");
+        sb.Append(showIncome ? ",Fee,Target income (capacity x fee),Expected income,Collected,Outstanding" : "");
         sb.Append(showMoney ? ",Expenses,Cost per student" : "");
-        sb.AppendLine(showMoney && showIncome ? ",Net profit" : "");
+        sb.AppendLine(showMoney && showIncome ? ",Net profit,Projected profit" : "");
         foreach (var r in model.Rows)
         {
             sb.Append(string.Join(",",
                 Csv(r.Name), r.StartDateTime.ToString("yyyy-MM-dd"), r.EndDateTime.ToString("yyyy-MM-dd"), Csv(r.CountryName), r.Type, r.Status,
                 r.Registrations, r.Capacity?.ToString() ?? "", r.FillPercent?.ToString() ?? ""));
             if (showMoney || showIncome) sb.Append($",{r.Currency}");
-            if (showIncome) sb.Append($",{r.Fee ?? 0:0.00},{r.ExpectedIncome:0.00},{r.Collected:0.00},{r.Outstanding:0.00}");
+            if (showIncome) sb.Append($",{r.Fee ?? 0:0.00},{r.TargetIncome:0.00},{r.ExpectedIncome:0.00},{r.Collected:0.00},{r.Outstanding:0.00}");
             if (showMoney) sb.Append($",{r.Expenses:0.00},{r.CostPerStudent?.ToString("0.00") ?? ""}");
-            if (showMoney && showIncome) sb.Append($",{r.NetProfit:0.00}");
+            if (showMoney && showIncome) sb.Append($",{r.NetProfit:0.00},{r.ProjectedProfit:0.00}");
             sb.AppendLine();
         }
 

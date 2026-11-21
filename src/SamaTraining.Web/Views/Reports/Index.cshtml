@@ -125,6 +125,7 @@
                         <div class="fin-grid mb-4">
                             @if (showIncome)
                             {
+                                <div class="fin-tile"><small>Target (all seats)</small><strong>@s.TargetIncome.ToString("N2")</strong></div>
                                 <div class="fin-tile"><small>Expected income</small><strong>@s.ExpectedIncome.ToString("N2")</strong></div>
                                 <div class="fin-tile"><small>Collected</small><strong class="text-success">@s.Collected.ToString("N2")</strong></div>
                                 <div class="fin-tile"><small>Outstanding</small><strong class="text-warning">@s.Outstanding.ToString("N2")</strong></div>
@@ -132,6 +133,10 @@
                             @if (showMoney)
                             {
                                 <div class="fin-tile"><small>Total expenses</small><strong class="text-danger">@MoneyFormat.Format(s.Expenses, s.Currency)</strong></div>
+                            }
+                            @if (showMoney && showIncome)
+                            {
+                                <div class="fin-tile"><small>Projected profit</small><strong class="@(s.ProjectedProfit < 0 ? "text-danger" : "text-success")">@s.ProjectedProfit.ToString("N2")</strong></div>
                             }
                         </div>
                         <div class="row text-center g-2">
@@ -222,6 +227,7 @@
                 <th style="min-width: 160px">Seats filled</th>
                 @if (showIncome)
                 {
+                    <th class="text-end">Target</th>
                     <th class="text-end">Expected</th>
                     <th class="text-end">Collected</th>
                     <th class="text-end">Outstanding</th>
@@ -268,6 +274,7 @@
                     </td>
                     @if (showIncome)
                     {
+                        <td class="text-end text-nowrap text-body-secondary">@MoneyFormat.Format(r.TargetIncome, r.Currency)</td>
                         <td class="text-end text-nowrap">@MoneyFormat.Format(r.ExpectedIncome, r.Currency)</td>
                         <td class="text-end text-nowrap text-success">@MoneyFormat.Format(r.Collected, r.Currency)</td>
                         <td class="text-end text-nowrap">@MoneyFormat.Format(r.Outstanding, r.Currency)</td>

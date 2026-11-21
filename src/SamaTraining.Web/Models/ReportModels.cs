@@ -32,6 +32,8 @@ public class CurrencySummary
     public decimal Collected { get; set; }
     public decimal Outstanding => ExpectedIncome - Collected;
     public decimal NetProfit => Collected - Expenses;
+    public decimal TargetIncome { get; set; }
+    public decimal ProjectedProfit => TargetIncome - Expenses;
 }
 
 public class WorkshopReportRow
@@ -52,6 +54,8 @@ public class WorkshopReportRow
     public decimal Collected { get; set; }
     public decimal Outstanding => ExpectedIncome - Collected;
     public decimal NetProfit => Collected - Expenses;
+    public decimal TargetIncome { get; set; }
+    public decimal ProjectedProfit => TargetIncome - Expenses;
     public DateTime EndDateTime { get; set; }
 
     public int? FillPercent => Capacity is > 0 ? (int)Math.Round(100.0 * Registrations / Capacity.Value) : null;

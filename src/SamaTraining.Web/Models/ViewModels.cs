@@ -232,11 +232,11 @@ public class WorkshopFormModel
     [StringLength(500), Url, Display(Name = "Meeting link")]
     public string? MeetingLink { get; set; }
 
-    [Range(1, 100000), Display(Name = "Capacity (optional)")]
+    [Required(ErrorMessage = "Enter the number of seats (capacity)."), Range(1, 100000, ErrorMessage = "Capacity must be between 1 and 100,000 seats."), Display(Name = "Capacity (seats)")]
     public int? Capacity { get; set; }
 
     /// <summary>US-06: registration fee in the workshop's currency. Empty or 0 = free.</summary>
-    [Range(typeof(decimal), "0", "999999999", ErrorMessage = "The fee can't be negative."), Display(Name = "Registration fee")]
+    [Required(ErrorMessage = "Enter the registration fee (0 for a free workshop)."), Range(typeof(decimal), "0", "999999999", ErrorMessage = "The fee can't be negative."), Display(Name = "Registration fee")]
     public decimal? Fee { get; set; }
 
     [StringLength(1000), Display(Name = "Short description (English)")]

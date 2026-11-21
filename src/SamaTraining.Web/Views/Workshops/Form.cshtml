@@ -164,7 +164,7 @@
                         <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
                         <label asp-for="Capacity"></label>
                         <span asp-validation-for="Capacity" class="text-danger small"></span>
-                        <div class="form-text">Registration stops when this number is reached. Leave empty for no limit. Not shown to applicants.</div>
+                        <div class="form-text">Required. Registration stops when this number is reached. Not shown to applicants.</div>
                     </div>
                     <div class="mt-5">
                         <div class="input-group input-group-merge">
@@ -175,7 +175,7 @@
                             <span class="input-group-text" data-currency-label>—</span>
                         </div>
                         <span asp-validation-for="Fee" class="text-danger small"></span>
-                        <div class="form-text">Per participant, in the workshop's currency. Leave empty or 0 for a free workshop.</div>
+                        <div class="form-text">Required. Per participant, in the workshop's currency. Enter 0 for a free workshop.</div>
                     </div>
                 </div>
             </div>

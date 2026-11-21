@@ -268,3 +268,16 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 [dir="rtl"] .pub-fact small { text-transform: none; letter-spacing: 0; }
 .pub-fact span { color: var(--bs-heading-color); }
 .pub-fee { border-color: rgba(22, 163, 74, .35); }
+
+/* ---- Dashboard currency card (simplified) ---- */
+.cc-profit { font-size: 1.9rem; font-weight: 600; line-height: 1.15; color: var(--bs-success); }
+.cc-profit.neg { color: var(--bs-danger); }
+.cc-profit.neutral { color: var(--bs-heading-color); }
+.cc-profit span { font-size: 1rem; font-weight: 500; color: var(--bs-secondary-color); }
+.cc-sub { font-size: .85rem; color: var(--bs-secondary-color); }
+.cc-sub b { color: var(--bs-heading-color); font-weight: 600; }
+.cc-target { display: flex; justify-content: space-between; gap: 1rem; background: rgba(var(--bs-primary-rgb), .06); border-radius: .5rem; padding: .625rem .875rem; }
+.cc-target small { display: block; font-size: .75rem; color: var(--bs-secondary-color); }
+.cc-target strong { color: var(--bs-heading-color); font-weight: 600; }
+.cc-foot { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; font-size: .8rem; color: var(--bs-secondary-color); border-top: 1px solid var(--bs-border-color); padding-top: .75rem; }
+.cc-foot b { color: var(--bs-heading-color); font-weight: 600; }

@@ -83,7 +83,8 @@ public class ReportService
                 EndDateTime = w.EndDateTime,
                 Fee = w.Fee,
                 ExpectedIncome = finance.GetValueOrDefault(w.Id)?.ExpectedIncome ?? 0,
-                Collected = finance.GetValueOrDefault(w.Id)?.Collected ?? 0
+                Collected = finance.GetValueOrDefault(w.Id)?.Collected ?? 0,
+                TargetIncome = finance.GetValueOrDefault(w.Id)?.TargetIncome ?? 0
             })
             .ToList();
 
@@ -99,7 +100,8 @@ public class ReportService
                 Registrations = g.Sum(r => r.Registrations),
                 Expenses = g.Sum(r => r.Expenses),
                 ExpectedIncome = g.Sum(r => r.ExpectedIncome),
-                Collected = g.Sum(r => r.Collected)
+                Collected = g.Sum(r => r.Collected),
+                TargetIncome = g.Sum(r => r.TargetIncome)
             })
             .ToList();
 

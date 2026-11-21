@@ -67,6 +67,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var createPage = await client.GetStringAsync("/Workshops/Create");
         var save = await client.PostAsync("/Workshops/Save", Form(createPage, new()
         {
+            ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = "Project Management Essentials",
             ["NameAr"] = "ورشة Project Management Essentials",
@@ -164,6 +165,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var editPage = await client.GetStringAsync($"/Workshops/Edit/{id}");
         var changeCountry = await client.PostAsync("/Workshops/Save", Form(editPage, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = id.ToString(),
             ["Name"] = "Project Management Essentials",
             ["NameAr"] = "ورشة Project Management Essentials",
@@ -223,6 +225,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = "Bad workshop",
             ["NameAr"] = "ورشة Bad workshop",
@@ -331,6 +334,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = "Cairo Volunteers Training",
             ["NameAr"] = "ورشة Cairo Volunteers Training",
@@ -357,6 +361,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = "Bad country",
             ["NameAr"] = "ورشة Bad country",
@@ -378,6 +383,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = name,
             ["NameAr"] = nameAr,
@@ -418,6 +424,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0",
             ["Name"] = "No Arabic name",
             ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"),
@@ -513,6 +520,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var wPage = await client.GetStringAsync("/Workshops/Create");
         await client.PostAsync("/Workshops/Save", Form(wPage, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0", ["Name"] = "Uses Main Hall", ["NameAr"] = "تستخدم القاعة الرئيسية",
             ["Date"] = DateTime.Today.AddDays(4).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "11:00",
             ["Type"] = "OnSite", ["HallId"] = usedHallId.ToString(), ["Country"] = "SD"
@@ -549,6 +557,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
+            ["Capacity"] = "50", ["Fee"] = "0",
             ["Id"] = "0", ["Name"] = "Backwards", ["NameAr"] = "عكسي", ["IsMultiDay"] = "true",
             ["Date"] = DateTime.Today.AddDays(10).ToString("yyyy-MM-dd"), ["EndDate"] = DateTime.Today.AddDays(8).ToString("yyyy-MM-dd"),
             ["StartTime"] = "09:00", ["EndTime"] = "12:00", ["Type"] = "Online", ["Country"] = "SD"
@@ -668,7 +677,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         Assert.Contains("3000.00,2000.00,1000.00", csv);
         var dashboard = await client.GetStringAsync("/");
         Assert.Contains("Net profit", dashboard);
-        Assert.Contains("Expected income", dashboard);
+        Assert.Contains("Target if all", dashboard);
 
         // US-10 reverse; US-09 no new payments once completed
         details = await client.GetStringAsync(detailsUrl);
@@ -745,5 +754,56 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var login = await browser.PostAsync("/Account/Login", Form(loginPage, new() { ["UserNameOrEmail"] = "reset.me", ["Password"] = "Brand@New123" }));
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
         Assert.DoesNotContain("ChangePassword", login.Headers.Location!.ToString());
+    }
+
+    [Fact] // Capacity and fee are required when adding a workshop
+    public async Task Workshop_RequiresCapacityAndFee()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "No seats", ["NameAr"] = "بلا مقاعد",
+            ["Date"] = DateTime.Today.AddDays(5).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "11:00",
+            ["Type"] = "Online", ["Country"] = "SD"
+        }));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("Enter the number of seats (capacity).", html);
+        Assert.Contains("Enter the registration fee (0 for a free workshop).", html);
+        Assert.False(await _app.WithDbAsync(db => db.Workshops.AnyAsync(w => w.Name == "No seats")));
+    }
+
+    [Fact] // Financial figures show on the dashboard and in reports before anyone registers or any expense is added
+    public async Task Finance_ShowsTargetBeforeRegistrationsOrExpenses()
+    {
+        var client = await _app.SignedInAdminAsync();
+        var start = DateTime.Today.AddDays(40);
+        var page = await client.GetStringAsync("/Workshops/Create");
+        var save = await client.PostAsync("/Workshops/Save", Form(page, new()
+        {
+            ["Id"] = "0", ["Name"] = "Cairo Finance Basics", ["NameAr"] = "أساسيات المالية بالقاهرة",
+            ["Date"] = start.ToString("yyyy-MM-dd"), ["StartTime"] = "10:00", ["EndTime"] = "13:00",
+            ["Type"] = "Online", ["Country"] = "EG", ["Capacity"] = "40", ["Fee"] = "2500"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, save.StatusCode);
+        var detailsUrl = save.Headers.Location!.ToString();
+
+        // Workshop page: 40 seats × 2,500 = 100,000 target, projected profit 100,000 with no expenses yet
+        var details = await client.GetStringAsync(detailsUrl);
+        Assert.Contains("100,000.00", details);
+        Assert.Contains("Projected profit if full", details);
+
+        var dashboard = await client.GetStringAsync("/");
+        Assert.Contains("Target if all", dashboard);
+        Assert.Contains("Projected profit", dashboard);
+
+        var csv = await (await client.GetAsync($"/Reports/Export?From={start.AddDays(-1):yyyy-MM-dd}&To={start.AddDays(1):yyyy-MM-dd}")).Content.ReadAsStringAsync();
+        Assert.Contains("Target income (capacity x fee)", csv);
+        Assert.Contains("2500.00,100000.00,0.00,0.00,0.00", csv);
+        Assert.Contains(",0.00,100000.00", csv); // net profit 0, projected profit 100,000
+        var report = await client.GetStringAsync($"/Reports?From={start.AddDays(-1):yyyy-MM-dd}&To={start.AddDays(1):yyyy-MM-dd}");
+        Assert.Contains("100,000.00 EGP", report);
+        Assert.Contains("Projected profit", report);
     }
 }

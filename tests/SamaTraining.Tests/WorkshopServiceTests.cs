@@ -287,6 +287,8 @@ public class WorkshopServiceTests : IDisposable
         Assert.Equal(800m, f.Outstanding);       // 1500 − 700
         Assert.Equal(300m, f.TotalExpenses);
         Assert.Equal(400m, f.NetProfit);         // 700 − 300
+        Assert.Equal(f.ExpectedIncome, f.TargetIncome); // no capacity set: seats = registrations
+        Assert.Equal(1200m, f.ProjectedProfit);   // 1500 − 300
 
         Assert.Equal(PaymentStatus.Paid, FinanceService.StatusOf(500, 500));
         Assert.Equal(PaymentStatus.PartiallyPaid, FinanceService.StatusOf(500, 200));

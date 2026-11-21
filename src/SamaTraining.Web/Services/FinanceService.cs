@@ -11,6 +11,8 @@ namespace SamaTraining.Web.Services;
 /// <item>Outstanding = expected − collected</item>
 /// <item>Total expenses = sum of recorded expenses</item>
 /// <item>Net profit = collected − total expenses</item>
+/// <item>Target income = fee × capacity (all seats filled); known from the moment a workshop is created</item>
+/// <item>Projected profit = target income − total expenses</item>
 /// </list>
 /// </summary>
 public class FinancialSummary
@@ -22,6 +24,15 @@ public class FinancialSummary
     public decimal Outstanding => ExpectedIncome - Collected;
     public decimal NetProfit => Collected - TotalExpenses;
 
+    /// <summary>Income if every seat is taken (fee × capacity). Shown even before anyone registers.</summary>
+    public decimal TargetIncome { get; set; }
+    public decimal ProjectedProfit => TargetIncome - TotalExpenses;
+
+    /// <summary>Seats offered and seats taken.</summary>
+    public int Seats { get; set; }
+    public int Participants { get; set; }
+    public int FillPercent => Seats > 0 ? (int)Math.Min(100, Math.Round(100m * Participants / Seats)) : 0;
+
     public int CollectedPercent => ExpectedIncome > 0 ? (int)Math.Min(100, Math.Round(100m * Collected / ExpectedIncome)) : 0;
 
     public void Add(FinancialSummary other)
@@ -29,6 +40,9 @@ public class FinancialSummary
         ExpectedIncome += other.ExpectedIncome;
         Collected += other.Collected;
         TotalExpenses += other.TotalExpenses;
+        TargetIncome += other.TargetIncome;
+        Seats += other.Seats;
+        Participants += other.Participants;
     }
 }
 
@@ -53,7 +67,7 @@ public class FinanceService
         }
 
         // Small data: loaded and summed in memory, which works the same on every database provider.
-        var ws = await workshops.Select(w => new { w.Id, w.CurrencyCode, w.Fee, Students = w.Registrations.Count }).ToListAsync();
+        var ws = await workshops.Select(w => new { w.Id, w.CurrencyCode, w.Fee, w.Capacity, Students = w.Registrations.Count }).ToListAsync();
         var ex = (await expenses.Select(e => new { e.WorkshopId, e.Amount }).ToListAsync())
             .GroupBy(e => e.WorkshopId).ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
         var co = (await collections.Select(c => new { c.WorkshopId, c.Amount }).ToListAsync())
@@ -63,6 +77,10 @@ public class FinanceService
         {
             Currency = w.CurrencyCode,
             ExpectedIncome = (w.Fee ?? 0) * w.Students,
+            // Older workshops saved without a capacity count their registrations as their seats.
+            Seats = w.Capacity ?? w.Students,
+            Participants = w.Students,
+            TargetIncome = (w.Fee ?? 0) * (w.Capacity ?? w.Students),
             Collected = co.GetValueOrDefault(w.Id),
             TotalExpenses = ex.GetValueOrDefault(w.Id)
         });
