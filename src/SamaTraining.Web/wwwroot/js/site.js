@@ -259,4 +259,31 @@
       if (isAr) load('/lib/flatpickr/ar.js?v=4.6.13', init); else init();
     });
   }
+
+  // ---- Sidebar collapse on desktop (the template only supports it on small screens) ----
+  // The circle button next to the logo shrinks the menu to icons; hovering the slim menu shows it in full.
+  var root = document.documentElement, sideMenu = document.getElementById('layout-menu');
+  if (sideMenu) {
+    var small = function () { return window.Helpers && Helpers.isSmallScreen ? Helpers.isSmallScreen() : window.innerWidth < 1200; };
+    var KEY = 'sama.menuCollapsed';
+    try { if (localStorage.getItem(KEY) === '1' && !small()) root.classList.add('layout-menu-collapsed'); } catch (e) { }
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('#layout-menu .layout-menu-toggle');
+      if (!t || small()) return;
+      e.preventDefault(); e.stopPropagation();
+      var on = !root.classList.contains('layout-menu-collapsed');
+      root.classList.remove('layout-menu-hover');
+      root.classList.toggle('layout-menu-collapsed', on);
+      try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e2) { }
+      window.dispatchEvent(new Event('resize'));
+    }, true);
+    var hoverTimer = null;
+    sideMenu.addEventListener('mouseenter', function () {
+      if (small() || !root.classList.contains('layout-menu-collapsed')) return;
+      hoverTimer = setTimeout(function () { root.classList.add('layout-menu-hover'); }, 150);
+    });
+    sideMenu.addEventListener('mouseleave', function () {
+      clearTimeout(hoverTimer); root.classList.remove('layout-menu-hover');
+    });
+  }
 })();
