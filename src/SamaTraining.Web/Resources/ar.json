@@ -574,5 +574,6 @@
  "{0} workshops · {1} participants · {2} completed": "{0} ورشة · {1} مشارك · {2} مكتملة",
  "{0}% collected": "تم تحصيل {0}%",
  "{0}'s account is saved.": "تم حفظ حساب {0}.",
- "{0}'s seat is free again. They can't register for this workshop again; use Undo if this was a mistake.": "أصبح مقعد {0} متاحاً. لا يمكنه التسجيل في هذه الورشة مرة أخرى؛ استخدم التراجع إذا كان ذلك خطأ."
+ "{0}'s seat is free again. They can't register for this workshop again; use Undo if this was a mistake.": "أصبح مقعد {0} متاحاً. لا يمكنه التسجيل في هذه الورشة مرة أخرى؛ استخدم التراجع إذا كان ذلك خطأ.",
+ "Workshop management": "إدارة الورش التدريبية"
 }

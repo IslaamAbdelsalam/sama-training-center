@@ -137,16 +137,23 @@
       var isRange = range && range.value === 'true';
       document.getElementById('end-date-group').classList.toggle('d-none', !isRange);
       var lbl = document.getElementById('start-date-label');
-      if (lbl) lbl.textContent = isRange ? 'Start date' : 'Date';
+      if (lbl) lbl.textContent = isRange ? (lbl.dataset.textRange || 'Start date') : (lbl.dataset.textSingle || 'Date');
       var start = document.getElementById('Date'), end = document.getElementById('EndDate');
       if (start && end) {
-        end.min = start.value || '';
-        if (isRange && start.value && (!end.value || end.value < start.value)) end.value = start.value;
+        var fixEnd = isRange && start.value && (!end.value || end.value < start.value);
+        if (end._flatpickr) {
+          end._flatpickr.set('minDate', start.value || null);
+          if (fixEnd) end._flatpickr.setDate(start.value, false);
+        } else {
+          end.min = start.value || '';
+          if (fixEnd) end.value = start.value;
+        }
       }
     };
     multi.forEach(function (r) { r.addEventListener('change', syncSchedule); });
     var startInput = document.getElementById('Date');
     if (startInput) startInput.addEventListener('change', syncSchedule);
+    document.addEventListener('sama:datepickers', syncSchedule);
     syncSchedule();
   }
 
@@ -206,5 +213,50 @@
     };
     phone.addEventListener('input', update);
     update();
+  }
+
+  // ---- Whole-row links: a row whose main link has data-row-link can be clicked anywhere ----
+  document.querySelectorAll('tr a[data-row-link]').forEach(function (a) {
+    var tr = a.closest('tr');
+    if (tr && !tr.classList.contains('row-link')) { tr.classList.add('row-link'); tr.dataset.href = a.href; }
+  });
+  document.addEventListener('click', function (e) {
+    var tr = e.target.closest && e.target.closest('tr.row-link');
+    if (!tr || e.target.closest('a, button, input, select, textarea, label, form, [data-bs-toggle]')) return;
+    if (window.getSelection && String(window.getSelection()).trim().length) return; // let people select text
+    if (e.ctrlKey || e.metaKey || e.shiftKey) window.open(tr.dataset.href, '_blank');
+    else window.location.href = tr.dataset.href;
+  });
+
+  // ---- Date fields: always shown as dd/MM/yyyy (sent to the server as yyyy-MM-dd). Loaded only on pages with dates. ----
+  var dateInputs = document.querySelectorAll('input[type="date"]');
+  if (dateInputs.length) {
+    var isAr = document.documentElement.lang === 'ar';
+    var load = function (src, done) {
+      var s = document.createElement('script'); s.src = src; s.onload = done; s.onerror = function () { }; document.head.appendChild(s);
+    };
+    var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/lib/flatpickr/flatpickr.min.css?v=4.6.13';
+    document.head.appendChild(css);
+    var parseDmy = function (str) {
+      var m = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*$/.exec(str || '');
+      if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+      m = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/.exec(str || '');
+      if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+      return undefined;
+    };
+    var init = function () {
+      dateInputs.forEach(function (inp) {
+        flatpickr(inp, {
+          dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true, disableMobile: true,
+          parseDate: parseDmy, minDate: inp.min || null, maxDate: inp.max || null,
+          locale: isAr && flatpickr.l10ns && flatpickr.l10ns.ar ? 'ar' : 'default',
+          onReady: function (_, __, fp) { if (fp.altInput) fp.altInput.placeholder = 'dd/mm/yyyy'; }
+        });
+      });
+      document.dispatchEvent(new Event('sama:datepickers'));
+    };
+    load('/lib/flatpickr/flatpickr.min.js?v=4.6.13', function () {
+      if (isAr) load('/lib/flatpickr/ar.js?v=4.6.13', init); else init();
+    });
   }
 })();

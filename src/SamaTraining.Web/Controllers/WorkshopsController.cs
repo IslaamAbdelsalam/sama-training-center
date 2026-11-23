@@ -414,8 +414,8 @@ public class WorkshopsController : AppController
         foreach (var r in rows)
         {
             sb.Append(string.Join(",", Csv(r.FullName), Csv(r.Email), Csv(phoneFormat.Format(r.Phone)), Csv(r.Organization),
-                Csv(r.Notes), r.Language, r.RegisteredAt.ToString("yyyy-MM-dd HH:mm"),
-                r.IsCancelled ? "Cancelled" : "Active", r.CancelledAt?.ToString("yyyy-MM-dd HH:mm") ?? "", Csv(r.CancelledBy), Csv(r.CancelReason)));
+                Csv(r.Notes), r.Language, DisplayFormat.DT(r.RegisteredAt),
+                r.IsCancelled ? "Cancelled" : "Active", DisplayFormat.DT(r.CancelledAt), Csv(r.CancelledBy), Csv(r.CancelReason)));
             if (showMoney && r.IsCancelled)
             {
                 sb.Append(",,,,Cancelled");

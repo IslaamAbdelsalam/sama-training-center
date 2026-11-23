@@ -18,7 +18,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-6">
     <div>
         <h4 class="mb-1">@L["Reports"]</h4>
-        <p class="mb-0 text-body-secondary">@(f.From?.ToString("dd MMM yyyy")) – @(f.To?.ToString("dd MMM yyyy")) · @L["{0} workshops", Model.Rows.Count]</p>
+        <p class="mb-0 text-body-secondary">@DisplayFormat.D(f.From) – @DisplayFormat.D(f.To) · @L["{0} workshops", Model.Rows.Count]</p>
     </div>
     <a asp-action="Export" asp-all-route-data="exportQuery" class="btn btn-outline-primary"><i class="icon-base ri ri-file-excel-2-line me-1"></i>@L["Export to Excel (CSV)"]</a>
 </div>
@@ -252,7 +252,7 @@
             {
                 <tr>
                     <td>
-                        <a asp-controller="Workshops" asp-action="Details" asp-route-id="@r.Id" class="fw-medium">@UiText.Pick(r.Name, r.NameAr)</a>
+                        <a asp-controller="Workshops" asp-action="Details" asp-route-id="@r.Id" class="fw-medium row-link-main" data-row-link>@UiText.Pick(r.Name, r.NameAr)</a>
                         <small class="d-block text-body-secondary">@DisplayFormat.ShortDates(r.StartDateTime, r.EndDateTime) · @(r.Type == WorkshopType.Online ? L["Online"] : L["On-site"]) · @(r.Fee is > 0 ? MoneyFormat.Format(r.Fee.Value, r.Currency) : L["Free"])</small>
                     </td>
                     <td>@L[r.CountryName]</td>

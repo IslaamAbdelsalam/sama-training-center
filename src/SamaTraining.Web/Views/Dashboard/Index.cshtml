@@ -11,7 +11,7 @@
             <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4">
                 <div>
                     <h4 class="text-white mb-1">@L["Welcome back, {0}", name]</h4>
-                    <p class="mb-0 opacity-75">@L["Here is what is happening at the training center today, {0}.", DateTime.Today.ToString("dddd, d MMMM yyyy", DisplayFormat.Culture(UiText.Lang))]</p>
+                    <p class="mb-0 opacity-75">@L["Here is what is happening at the training center today, {0}.", DisplayFormat.DayAndDate(DateTime.Today, UiText.Lang)]</p>
                 </div>
                 @if (User.Can(Permissions.WorkshopsManage))
                 {
@@ -177,7 +177,7 @@
                     {
                         <tr>
                             <td>
-                                <a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@UiText.Pick(w.Name, w.NameAr)</a>
+                                <a asp-controller="Workshops" asp-action="Details" asp-route-id="@w.Id" class="fw-medium row-link-main" data-row-link>@UiText.Pick(w.Name, w.NameAr)</a>
                                 <small class="d-block text-body-secondary">@(w.Type == WorkshopType.Online ? L["Online"] : (w.Hall != null ? w.Hall.LocalName(UiText.Lang) : L["On-site"]))</small>
                             </td>
                             <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime) <small class="text-body-secondary d-block">@DisplayFormat.Hours(w)@(w.IsMultiDay ? " " + L["daily"] : "")</small></td>

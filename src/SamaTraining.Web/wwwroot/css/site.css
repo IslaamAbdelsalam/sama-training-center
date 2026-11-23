@@ -303,3 +303,18 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 [dir="rtl"] .currency-code, [dir="rtl"] .font-monospace, [dir="rtl"] input[type="number"], [dir="rtl"] input[type="email"], [dir="rtl"] input[type="url"], [dir="rtl"] input[type="tel"] { direction: ltr; }
 [dir="rtl"] input[type="number"], [dir="rtl"] input[type="email"], [dir="rtl"] input[type="url"] { text-align: right; }
 .lang-switch { white-space: nowrap; }
+
+/* Sign-in card header: logo + name on one side, language button on the other */
+.auth-head .sama-logo { width: 40px; height: 40px; }
+.auth-lang { border-radius: 0.6rem; padding: 0.35rem 0.9rem; font-weight: 500; white-space: nowrap; }
+
+/* Whole-row links: any table row with a main link can be clicked anywhere */
+tr.row-link { cursor: pointer; }
+tr.row-link > td { transition: background-color .12s ease; }
+tr.row-link:hover > td, tr.row-link:focus-within > td { background-color: rgba(var(--bs-primary-rgb), .07) !important; }
+tr.row-link:hover .row-link-main { text-decoration: underline; }
+
+/* Date pickers show dd/MM/yyyy */
+.flatpickr-input[readonly] { background-color: var(--bs-body-bg, #fff); cursor: pointer; }
+.flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.startRange, .flatpickr-day.endRange { background: var(--bs-primary); border-color: var(--bs-primary); }
+.flatpickr-day.today { border-color: var(--bs-primary); }

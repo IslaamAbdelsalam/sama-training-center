@@ -50,7 +50,7 @@ public class ReportsController : AppController
         foreach (var r in model.Rows)
         {
             sb.Append(string.Join(",",
-                Csv(r.Name), r.StartDateTime.ToString("yyyy-MM-dd"), r.EndDateTime.ToString("yyyy-MM-dd"), Csv(r.CountryName), r.Type, r.Status,
+                Csv(r.Name), DisplayFormat.D(r.StartDateTime), DisplayFormat.D(r.EndDateTime), Csv(r.CountryName), r.Type, r.Status,
                 r.Registrations, r.Capacity?.ToString() ?? "", r.FillPercent?.ToString() ?? ""));
             if (showMoney || showIncome) sb.Append($",{r.Currency}");
             if (showIncome) sb.Append($",{r.Fee ?? 0:0.00},{r.TargetIncome:0.00},{r.ExpectedIncome:0.00},{r.Collected:0.00},{r.Outstanding:0.00}");

@@ -35,7 +35,7 @@
                         else { <span class="badge bg-label-secondary">@L["Inactive"]</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
+                        <a asp-action="Edit" asp-route-id="@c.Id" data-row-link class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
                         @if (used == 0)
                         {
                             <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline" data-confirm="@L["\"{0}\" will be removed from the expense types list.", c.Name]" data-confirm-title="@L["Delete this category?"]" data-confirm-button="@L["Delete"]">

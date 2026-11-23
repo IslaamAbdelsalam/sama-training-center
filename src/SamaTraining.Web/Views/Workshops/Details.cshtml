@@ -75,7 +75,7 @@
             <div class="col-sm-6 col-lg">
                 <div class="ws-fact">
                     <span class="stat-icon bg-label-primary"><i class="icon-base ri ri-time-line"></i></span>
-                    <div><small>@(w.IsMultiDay ? DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime) + " · " + L["{0} days", w.Days] : w.StartDateTime.ToString("dddd, dd MMM yyyy", DisplayFormat.Culture(UiText.Lang)))</small><strong>@DisplayFormat.Hours(w)@(w.IsMultiDay ? " " + L["daily"] : "")</strong></div>
+                    <div><small>@(w.IsMultiDay ? DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime) + " · " + L["{0} days", w.Days] : DisplayFormat.DayAndDate(w.StartDateTime, UiText.Lang))</small><strong>@DisplayFormat.Hours(w)@(w.IsMultiDay ? " " + L["daily"] : "")</strong></div>
                 </div>
             </div>
             <div class="col-sm-6 col-lg">
@@ -228,7 +228,7 @@
                                                 <small><a href="mailto:@r.Email">@r.Email</a></small>
                                                 @if (r.IsCancelled)
                                                 {
-                                                    <small class="d-block text-body-secondary mt-1">@L["Cancelled {0} by {1}", r.CancelledAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm"), r.CancelledBy]@(string.IsNullOrEmpty(r.CancelReason) ? "" : " — " + r.CancelReason)</small>
+                                                    <small class="d-block text-body-secondary mt-1">@L["Cancelled {0} by {1}", DisplayFormat.DT(r.CancelledAt?.ToLocalTime()), r.CancelledBy]@(string.IsNullOrEmpty(r.CancelReason) ? "" : " — " + r.CancelReason)</small>
                                                 }
                                             </td>
                                             <td class="text-nowrap">
@@ -239,7 +239,7 @@
                                                 }
                                             </td>
                                             <td>@r.Organization</td>
-                                            <td class="text-nowrap small">@r.RegisteredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                                            <td class="text-nowrap small">@DisplayFormat.DT(r.RegisteredAt.ToLocalTime())</td>
                                             @if (showPayments)
                                             {
                                                 if (r.IsCancelled)
@@ -338,13 +338,13 @@
                                                 @if (!string.IsNullOrWhiteSpace(e.ExpenseCategory?.NameAr)) { <small class="text-body-secondary d-block" dir="rtl">@e.ExpenseCategory.NameAr</small> }
                                                 @if (!string.IsNullOrWhiteSpace(e.Description)) { <small class="text-body-secondary">@e.Description</small> }
                                             </td>
-                                            <td class="text-nowrap">@e.ExpenseDate.ToString("dd MMM yyyy")</td>
+                                            <td class="text-nowrap">@DisplayFormat.D(e.ExpenseDate)</td>
                                             <td class="text-end fw-medium text-nowrap">@e.Amount.ToString("N2")</td>
                                             <td class="small">@(e.UpdatedBy ?? e.CreatedBy)</td>
                                             @if (canManage)
                                             {
                                                 <td class="text-end text-nowrap">
-                                                    <a asp-controller="Expenses" asp-action="Edit" asp-route-id="@e.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
+                                                    <a asp-controller="Expenses" asp-action="Edit" asp-route-id="@e.Id" data-row-link class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
                                                     <form asp-controller="Expenses" asp-action="Delete" asp-route-id="@e.Id" method="post" class="d-inline"
                                                           data-confirm="@L["{0} ({1}) will be removed from this workshop.", MoneyFormat.Format(e.Amount, currency), e.ExpenseCategory?.LocalName(UiText.Lang)]" data-confirm-title="@L["Delete this expense?"]" data-confirm-button="@L["Delete"]">
                                                         <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="@L["Delete"]" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
@@ -403,14 +403,14 @@
                                                 <div class="fw-medium text-heading">@c.Registration?.FullName</div>
                                                 @if (!string.IsNullOrWhiteSpace(c.Reference)) { <small class="text-body-secondary">@L["Ref:"] @c.Reference</small> }
                                             </td>
-                                            <td class="text-nowrap">@c.CollectedOn.ToString("dd MMM yyyy")</td>
+                                            <td class="text-nowrap">@DisplayFormat.D(c.CollectedOn)</td>
                                             <td>@DisplayFormat.Label(c.Method)</td>
                                             <td class="text-end fw-medium text-nowrap">@c.Amount.ToString("N2")</td>
                                             <td class="small">@(c.UpdatedBy ?? c.CreatedBy)</td>
                                             @if (canEditCollections)
                                             {
                                                 <td class="text-end text-nowrap">
-                                                    <a asp-controller="Collections" asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
+                                                    <a asp-controller="Collections" asp-action="Edit" asp-route-id="@c.Id" data-row-link class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
                                                     <form asp-controller="Collections" asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
                                                           data-confirm="@L["{0} from {1} will be removed.", MoneyFormat.Format(c.Amount, currency), c.Registration?.FullName]" data-confirm-title="@L["Delete this payment?"]" data-confirm-button="@L["Delete"]">
                                                         <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="@L["Delete"]" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
@@ -433,7 +433,7 @@
                         <ul class="timeline-simple">
                             <li>
                                 <div class="fw-medium">@L["Created"]</div>
-                                <small class="text-body-secondary">@w.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(w.CreatedBy ?? "—")</small>
+                                <small class="text-body-secondary">@DisplayFormat.DT(w.CreatedAt.ToLocalTime()) · @(w.CreatedBy ?? "—")</small>
                             </li>
                             @foreach (var h in Model.History)
                             {
@@ -447,14 +447,14 @@
                                     {
                                         <div class="fw-medium">@DisplayFormat.Label(h.Action)@(string.IsNullOrEmpty(h.Note) ? "" : ": " + h.Note)</div>
                                     }
-                                    <small class="text-body-secondary">@h.ChangedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(h.ChangedBy ?? "—")</small>
+                                    <small class="text-body-secondary">@DisplayFormat.DT(h.ChangedAt.ToLocalTime()) · @(h.ChangedBy ?? "—")</small>
                                 </li>
                             }
                             @if (w.UpdatedAt.HasValue)
                             {
                                 <li>
                                     <div class="fw-medium">@L["Last change"]</div>
-                                    <small class="text-body-secondary">@w.UpdatedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @(w.UpdatedBy ?? "—")</small>
+                                    <small class="text-body-secondary">@DisplayFormat.DT(w.UpdatedAt.Value.ToLocalTime()) · @(w.UpdatedBy ?? "—")</small>
                                 </li>
                             }
                         </ul>

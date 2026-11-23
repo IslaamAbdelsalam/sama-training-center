@@ -44,7 +44,7 @@
                         else { <span class="badge bg-label-success">@L["Active"]</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
+                        <a asp-action="Edit" asp-route-id="@u.Id" data-row-link class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
                         <a asp-action="ResetPassword" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Reset password"]"><i class="icon-base ri ri-key-2-line"></i></a>
                         @if (u.IsLockedOut)
                         {

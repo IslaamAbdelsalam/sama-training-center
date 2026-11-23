@@ -87,7 +87,7 @@
             @foreach (var w in Model.Items)
             {
                 <tr>
-                    <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@UiText.Pick(w.Name, w.NameAr)</a></td>
+                    <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium row-link-main" data-row-link>@UiText.Pick(w.Name, w.NameAr)</a></td>
                     <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime)<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")@(w.EndDateTime.Date > w.StartDateTime.Date ? " " + L["daily"] : "")</small></td>
                     <td>
                         @if (w.Type == WorkshopType.Online)

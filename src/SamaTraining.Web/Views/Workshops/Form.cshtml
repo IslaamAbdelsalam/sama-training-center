@@ -90,7 +90,7 @@
                     </div>
                     <div class="form-floating form-floating-outline mb-5">
                         <input asp-for="Date" type="date" class="form-control" />
-                        <label asp-for="Date" id="start-date-label">@(Model.IsMultiDay ? L["Start date"] : L["Date"])</label>
+                        <label asp-for="Date" id="start-date-label" data-text-range="@L["Start date"]" data-text-single="@L["Date"]">@(Model.IsMultiDay ? L["Start date"] : L["Date"])</label>
                         <span asp-validation-for="Date" class="text-danger small"></span>
                     </div>
                     <div id="end-date-group" class="form-floating form-floating-outline mb-5 @(Model.IsMultiDay ? "" : "d-none")">

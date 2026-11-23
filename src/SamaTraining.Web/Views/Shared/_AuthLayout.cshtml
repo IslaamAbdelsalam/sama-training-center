@@ -13,15 +13,24 @@
     <div class="authentication-wrapper authentication-basic container-p-y">
         <div class="authentication-inner py-6 mx-4">
             <div class="card p-sm-7 p-2">
-                <div class="app-brand justify-content-center mt-5">
-                    <a href="/" class="app-brand-link gap-3">
+                @{
+                    var here = Context.Request.Path + Context.Request.QueryString;
+                    var target = UiText.IsArabic ? "en" : "ar";
+                }
+                <div class="auth-head d-flex justify-content-between align-items-center gap-3 px-5 pt-3">
+                    <a href="/" class="d-flex align-items-center gap-3 text-decoration-none">
                         <span class="app-brand-logo demo sama-logo"><i class="icon-base ri ri-graduation-cap-fill"></i></span>
-                        <span class="app-brand-text demo text-heading fw-semibold sama-brand">@L[settings.SystemName]</span>
+                        <span class="d-flex flex-column lh-sm">
+                            <span class="text-heading fw-semibold sama-brand fs-5">@L[settings.SystemName]</span>
+                            <small class="text-body-secondary">@L["Workshop management"]</small>
+                        </span>
                     </a>
+                    <a class="btn btn-sm btn-outline-secondary auth-lang" lang="@target"
+                       href="/Language/Set?lang=@target&amp;returnUrl=@Uri.EscapeDataString(here)"
+                       title="@(UiText.IsArabic ? "Switch to English" : "التبديل إلى العربية")">@(UiText.IsArabic ? "English" : "العربية")</a>
                 </div>
                 <div class="card-body mt-1">
                     @RenderBody()
-                    <div class="text-center mt-5"><partial name="_LanguageSwitch" /></div>
                 </div>
             </div>
             <img src="~/assets/img/illustrations/tree-3.png" alt="" class="authentication-image-object-left d-none d-lg-block" />

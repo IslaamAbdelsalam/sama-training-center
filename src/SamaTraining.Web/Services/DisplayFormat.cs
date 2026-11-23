@@ -27,35 +27,32 @@ public static class DisplayFormat
             ? (lang == "ar" ? "مجاني" : "Free")
             : $"{w.Fee!.Value.ToString("N2", CultureInfo.InvariantCulture)} {CurrencyName(w.CurrencyCode, lang)}";
 
-    /// <summary>Single day: "Monday 5 January 2026". Date range: "5 – 9 January 2026 (5 days)".</summary>
+    /// <summary>The one date format used everywhere: dd/MM/yyyy (e.g. 05/01/2026).</summary>
+    public static string D(DateTime d) => d.ToString("dd'/'MM'/'yyyy", CultureInfo.InvariantCulture);
+    public static string D(DateTime? d) => d.HasValue ? D(d.Value) : "";
+
+    /// <summary>Date and time: "05/01/2026 14:30".</summary>
+    public static string DT(DateTime d) => d.ToString("dd'/'MM'/'yyyy HH:mm", CultureInfo.InvariantCulture);
+    public static string DT(DateTime? d) => d.HasValue ? DT(d.Value) : "";
+
+    /// <summary>Day name and date: "Monday 05/01/2026" / "الاثنين 05/01/2026".</summary>
+    public static string DayAndDate(DateTime d, string lang) => $"{d.ToString("dddd", Culture(lang))} {D(d)}";
+
+    /// <summary>Single day: "Monday 05/01/2026". Date range: "05/01/2026 – 09/01/2026 (5 days)".</summary>
     public static string Dates(Workshop w, string lang)
     {
-        var c = Culture(lang);
-        var s = w.StartDateTime;
-        var e = w.EndDateTime;
-        if (!w.IsMultiDay) return s.ToString("dddd d MMMM yyyy", c);
-
-        string range;
-        if (s.Year == e.Year && s.Month == e.Month) range = $"{s.ToString("%d", c)} – {e.ToString("d MMMM yyyy", c)}";
-        else if (s.Year == e.Year) range = $"{s.ToString("d MMMM", c)} – {e.ToString("d MMMM yyyy", c)}";
-        else range = $"{s.ToString("d MMMM yyyy", c)} – {e.ToString("d MMMM yyyy", c)}";
-
+        if (!w.IsMultiDay) return DayAndDate(w.StartDateTime, lang);
         var days = lang == "ar" ? $"{w.Days} أيام" : $"{w.Days} days";
         if (lang == "ar" && w.Days > 10) days = $"{w.Days} يوماً";
-        return $"{range} ({days})";
+        return $"{D(w.StartDateTime)} – {D(w.EndDateTime)} ({days})";
     }
 
     /// <summary>Daily hours, e.g. "09:00 – 13:00".</summary>
     public static string Hours(Workshop w) => $"{w.StartDateTime:HH:mm} – {w.EndDateTime:HH:mm}";
 
-    /// <summary>Short staff-facing date: "05 Jan 2026" or "05 – 09 Jan 2026".</summary>
-    public static string ShortDates(DateTime start, DateTime end)
-    {
-        if (end.Date <= start.Date) return start.ToString("dd MMM yyyy");
-        if (start.Year == end.Year && start.Month == end.Month) return $"{start:dd} – {end:dd MMM yyyy}";
-        if (start.Year == end.Year) return $"{start:dd MMM} – {end:dd MMM yyyy}";
-        return $"{start:dd MMM yyyy} – {end:dd MMM yyyy}";
-    }
+    /// <summary>Staff-facing date: "05/01/2026" or "05/01/2026 – 09/01/2026".</summary>
+    public static string ShortDates(DateTime start, DateTime end) =>
+        end.Date <= start.Date ? D(start) : $"{D(start)} – {D(end)}";
 
     public static string Label(PaymentStatus s) => s switch
     {
