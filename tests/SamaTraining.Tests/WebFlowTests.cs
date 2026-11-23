@@ -527,7 +527,7 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
             ["Type"] = "OnSite", ["HallId"] = usedHallId.ToString(), ["Country"] = "SD"
         }));
         var usedEdit = await client.GetStringAsync($"/Halls/Edit/{usedHallId}");
-        Assert.Contains("so it can't be deleted", usedEdit);
+        Assert.Contains("so it can&#x27;t be deleted", usedEdit);
         var blocked = await client.PostAsync($"/Halls/Delete/{usedHallId}?fromEdit=true", Form(usedEdit, new()));
         Assert.Equal(HttpStatusCode.Redirect, blocked.StatusCode);
         Assert.Contains($"/Halls/Edit/{usedHallId}", blocked.Headers.Location!.ToString());
