@@ -18,8 +18,8 @@ else
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 }
 
-<link rel="stylesheet" href="~/assets/vendor/fonts/iconify-icons.css" />
-<link rel="stylesheet" href="~/assets/vendor/libs/node-waves/node-waves.css" />
+<link rel="stylesheet" href="~/assets/vendor/fonts/iconify-icons.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/assets/vendor/libs/node-waves/node-waves.css" asp-append-version="true" />
 @if (UiText.IsArabic && ViewData["PublicPage"] is not true)
 {
     <link rel="stylesheet" href="~/assets/vendor/css/core.rtl.css" asp-append-version="true" />
@@ -28,8 +28,8 @@ else
 {
     <link rel="stylesheet" href="~/assets/vendor/css/core.css" asp-append-version="true" />
 }
-<link rel="stylesheet" href="~/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+<link rel="stylesheet" href="~/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 
-<script src="~/assets/vendor/js/helpers.js"></script>
-<script src="~/assets/js/config.js"></script>
+<script src="~/assets/vendor/js/helpers.js" asp-append-version="true"></script>
+<script src="~/assets/js/config.js" asp-append-version="true"></script>
