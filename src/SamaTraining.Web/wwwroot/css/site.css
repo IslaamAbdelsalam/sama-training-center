@@ -318,3 +318,7 @@ tr.row-link:hover .row-link-main { text-decoration: underline; }
 .flatpickr-input[readonly] { background-color: var(--bs-body-bg, #fff); cursor: pointer; }
 .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.startRange, .flatpickr-day.endRange { background: var(--bs-primary); border-color: var(--bs-primary); }
 .flatpickr-day.today { border-color: var(--bs-primary); }
+
+/* Breathing room between the sidebar logo and the first menu item */
+.layout-menu .app-brand.demo { margin-bottom: 0.75rem; padding-top: 0.5rem; }
+.layout-menu .app-brand.demo + .menu-divider, .layout-menu .menu-inner-shadow { margin-top: 0.25rem; }
