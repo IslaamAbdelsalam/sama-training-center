@@ -1,10 +1,10 @@
 @model HallFormModel
 @{
-    ViewData["Title"] = Model.Id == 0 ? "Add Hall / Location" : "Edit Hall / Location";
+    ViewData["Title"] = Model.Id == 0 ? L["Add Hall / Location"] : L["Edit Hall / Location"];
 }
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-6">
     <div>
-        <a asp-action="Index" class="small d-inline-flex align-items-center mb-1"><i class="icon-base ri ri-arrow-left-line me-1"></i>Halls &amp; Locations</a>
+        <a asp-action="Index" class="small d-inline-flex align-items-center mb-1"><i class="icon-base ri ri-arrow-left-line me-1"></i>@L["Halls & Locations"]</a>
         <h4 class="mb-0">@ViewData["Title"]</h4>
     </div>
 </div>
@@ -18,7 +18,7 @@
             <div class="row g-5">
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Name" class="form-control" placeholder="Name" dir="ltr" autofocus />
+                        <input asp-for="Name" class="form-control" placeholder="@L["Name"]" dir="ltr" autofocus />
                         <label asp-for="Name"></label>
                     </div>
                     <span asp-validation-for="Name" class="text-danger small"></span>
@@ -32,7 +32,7 @@
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Location" class="form-control" placeholder="Location" dir="ltr" />
+                        <input asp-for="Location" class="form-control" placeholder="@L["Location"]" dir="ltr" />
                         <label asp-for="Location"></label>
                     </div>
                     <span asp-validation-for="Location" class="text-danger small"></span>
@@ -46,7 +46,7 @@
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
+                        <input asp-for="Capacity" class="form-control" placeholder="@L["Capacity"]" />
                         <label asp-for="Capacity"></label>
                     </div>
                     <span asp-validation-for="Capacity" class="text-danger small"></span>
@@ -55,32 +55,32 @@
                     <div class="form-check form-switch mb-0">
                         <input asp-for="IsActive" class="form-check-input" />
                         <label asp-for="IsActive" class="form-check-label"></label>
-                        <div class="form-text">Inactive halls can't be chosen for new workshops.</div>
+                        <div class="form-text">@L["Inactive halls can't be chosen for new workshops."]</div>
                     </div>
                 </div>
             </div>
-            <div class="form-text mt-4">The Arabic name and location are shown on the Arabic registration page.</div>
+            <div class="form-text mt-4">@L["The Arabic name and location are shown on the Arabic registration page."]</div>
         </div>
     </form>
     <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-5">
         <div>
-            <button type="submit" form="hall-form" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>Save</button>
-            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" form="hall-form" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@L["Save"]</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">@L["Cancel"]</a>
         </div>
         @if (Model.Id != 0)
         {
             @if (Model.UsedBy == 0)
             {
                 <form asp-action="Delete" asp-route-id="@Model.Id" asp-route-fromEdit="true" method="post"
-                      data-confirm="&quot;@Model.Name&quot; will be permanently removed from Halls &amp; Locations." data-confirm-title="Delete this hall?" data-confirm-button="Delete">
-                    <button type="submit" class="btn btn-outline-danger" data-loading-text="Deleting…"><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
+                      data-confirm="@L["\"{0}\" will be permanently removed from Halls & Locations.", Model.Name]" data-confirm-title="@L["Delete this hall?"]" data-confirm-button="@L["Delete"]">
+                    <button type="submit" class="btn btn-outline-danger" data-loading-text="@L["Deleting…"]"><i class="icon-base ri ri-delete-bin-7-line me-1"></i>@L["Delete"]</button>
                 </form>
             }
             else
             {
                 <div class="d-flex align-items-center gap-2">
-                    <span class="small text-body-secondary"><i class="icon-base ri ri-information-line me-1"></i>Used by @Model.UsedBy workshop(s), so it can't be deleted. Switch it to inactive instead.</span>
-                    <button type="button" class="btn btn-outline-danger" disabled><i class="icon-base ri ri-delete-bin-7-line me-1"></i>Delete</button>
+                    <span class="small text-body-secondary"><i class="icon-base ri ri-information-line me-1"></i>@L["Used by {0} workshops, so it can't be deleted. Switch it to inactive instead.", Model.UsedBy]</span>
+                    <button type="button" class="btn btn-outline-danger" disabled><i class="icon-base ri ri-delete-bin-7-line me-1"></i>@L["Delete"]</button>
                 </div>
             }
         }

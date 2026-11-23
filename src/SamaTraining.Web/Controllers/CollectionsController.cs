@@ -78,7 +78,7 @@ public class CollectionsController : AppController
         if (model.RegistrationId.HasValue
             && !await _db.Registrations.AnyAsync(r => r.Id == model.RegistrationId && r.WorkshopId == w.Id && !r.IsCancelled))
         {
-            ModelState.AddModelError(nameof(model.RegistrationId), "Choose an active participant registered for this workshop (cancelled registrations can't pay).");
+            ModelState.AddModelError(nameof(model.RegistrationId), UiText.Get("Choose an active participant registered for this workshop (cancelled registrations can't pay)."));
         }
 
         if (!ModelState.IsValid)
@@ -111,7 +111,7 @@ public class CollectionsController : AppController
         c.Notes = model.Notes?.Trim();
         await _db.SaveChangesAsync();
 
-        Success(isNew ? "Payment recorded" : "Payment updated", $"{MoneyFormat.Format(c.Amount, w.CurrencyCode)} for \"{w.Name}\".");
+        Success(isNew ? "Payment recorded" : "Payment updated", UiText.Format("{0} for \"{1}\".", MoneyFormat.Format(c.Amount, w.CurrencyCode), w.Name));
         Highlight("c" + c.Id);
         if (isNew && addAnother) return RedirectToAction(nameof(Create), new { workshopId = w.Id });
         return RedirectToAction("Details", "Workshops", new { id = w.Id, tab = "payments" });
@@ -126,7 +126,7 @@ public class CollectionsController : AppController
 
         _db.FeeCollections.Remove(c);
         await _db.SaveChangesAsync();
-        Success("Payment deleted", $"{MoneyFormat.Format(c.Amount, c.CurrencyCode)} was removed from the collected total.");
+        Success("Payment deleted", UiText.Format("{0} was removed from the collected total.", MoneyFormat.Format(c.Amount, c.CurrencyCode)));
         return RedirectToAction("Details", "Workshops", new { id = c.WorkshopId, tab = "payments" });
     }
 

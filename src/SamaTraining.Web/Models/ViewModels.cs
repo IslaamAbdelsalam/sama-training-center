@@ -173,11 +173,13 @@ public class WorkshopListItem
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameAr { get; set; }
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
     public WorkshopType Type { get; set; }
     public string Country { get; set; } = string.Empty;
     public string? HallName { get; set; }
+    public string? HallNameAr { get; set; }
     public WorkshopStatus Status { get; set; }
     public bool RegistrationOpen { get; set; }
     public int Registrations { get; set; }

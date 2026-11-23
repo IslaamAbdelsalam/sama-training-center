@@ -1,6 +1,6 @@
 @model ExpenseFormModel
 @{
-    ViewData["Title"] = Model.Id == 0 ? "Add Expense" : "Edit Expense";
+    ViewData["Title"] = Model.Id == 0 ? L["Add Expense"] : L["Edit Expense"];
 }
 <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="expenses" class="small"><i class="icon-base ri ri-arrow-left-line me-1"></i>@Model.WorkshopName</a>
 <h4 class="mb-6 mt-2">@ViewData["Title"]</h4>
@@ -14,7 +14,7 @@
 
             <div class="form-floating form-floating-outline mb-5">
                 <select asp-for="ExpenseCategoryId" class="form-select" asp-items="Model.Categories">
-                    <option value="">Choose…</option>
+                    <option value="">@L["Choose…"]</option>
                 </select>
                 <label asp-for="ExpenseCategoryId"></label>
                 <span asp-validation-for="ExpenseCategoryId" class="text-danger small"></span>
@@ -39,17 +39,17 @@
                 </div>
             </div>
             <div class="form-floating form-floating-outline mb-6">
-                <textarea asp-for="Description" class="form-control" placeholder="Description" style="height: 100px"></textarea>
+                <textarea asp-for="Description" class="form-control" placeholder="@L["Description"]" style="height: 100px"></textarea>
                 <label asp-for="Description"></label>
                 <span asp-validation-for="Description" class="text-danger small"></span>
             </div>
 
-            <button type="submit" class="btn btn-primary me-2">@(Model.Id == 0 ? "Add expense" : "Save changes")</button>
+            <button type="submit" class="btn btn-primary me-2">@(Model.Id == 0 ? L["Add expense"] : L["Save changes"])</button>
             @if (Model.Id == 0)
             {
-                <button type="submit" name="addAnother" value="true" class="btn btn-outline-primary me-2">Add &amp; add another</button>
+                <button type="submit" name="addAnother" value="true" class="btn btn-outline-primary me-2">@L["Add & add another"]</button>
             }
-            <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="expenses" class="btn btn-outline-secondary">Cancel</a>
+            <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="expenses" class="btn btn-outline-secondary">@L["Cancel"]</a>
         </form>
     </div>
 </div>

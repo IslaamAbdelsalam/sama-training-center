@@ -1,0 +1,9 @@
+@* English / Arabic switch for staff screens. Keeps the current page. *@
+@{
+    var here = Context.Request.Path + Context.Request.QueryString;
+    var target = UiText.IsArabic ? "en" : "ar";
+}
+<a class="btn btn-sm btn-outline-secondary lang-switch" href="/Language/Set?lang=@target&amp;returnUrl=@Uri.EscapeDataString(here)"
+   title="@(UiText.IsArabic ? "Switch to English" : "التبديل إلى العربية")" lang="@target">
+    <i class="icon-base ri ri-translate-2 me-1"></i>@(UiText.IsArabic ? "English" : "العربية")
+</a>

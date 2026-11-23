@@ -2,11 +2,11 @@
     var settings = AppOptions.Value;
 }
 <!doctype html>
-<html lang="en" class="layout-wide customizer-hide" data-assets-path="/assets/" data-template="vertical-menu-template-free">
+<html lang="@UiText.Lang" dir="@(UiText.IsArabic ? "rtl" : "ltr")" class="layout-wide customizer-hide" data-assets-path="/assets/" data-template="vertical-menu-template-free">
 <head>
     <partial name="_Head" />
-    <link rel="stylesheet" href="~/assets/vendor/css/pages/page-auth.css" />
-    <title>@ViewData["Title"] | @settings.SystemName</title>
+    <link rel="stylesheet" href="~/assets/vendor/css/pages/@(UiText.IsArabic ? "page-auth.rtl.css" : "page-auth.css")" asp-append-version="true" />
+    <title>@ViewData["Title"] | @L[settings.SystemName]</title>
 </head>
 <body>
 <div class="position-relative">
@@ -16,11 +16,12 @@
                 <div class="app-brand justify-content-center mt-5">
                     <a href="/" class="app-brand-link gap-3">
                         <span class="app-brand-logo demo sama-logo"><i class="icon-base ri ri-graduation-cap-fill"></i></span>
-                        <span class="app-brand-text demo text-heading fw-semibold sama-brand">@settings.SystemName</span>
+                        <span class="app-brand-text demo text-heading fw-semibold sama-brand">@L[settings.SystemName]</span>
                     </a>
                 </div>
                 <div class="card-body mt-1">
                     @RenderBody()
+                    <div class="text-center mt-5"><partial name="_LanguageSwitch" /></div>
                 </div>
             </div>
             <img src="~/assets/img/illustrations/tree-3.png" alt="" class="authentication-image-object-left d-none d-lg-block" />

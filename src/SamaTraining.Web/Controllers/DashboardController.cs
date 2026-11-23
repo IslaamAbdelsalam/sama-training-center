@@ -48,7 +48,7 @@ public class DashboardController : AppController
             TotalRegistrations = await _db.Registrations.CountAsync(r => !r.IsCancelled),
             ShowExpenses = User.Can(Permissions.ExpensesView),
             ShowIncome = User.Can(Permissions.CollectionsView),
-            Upcoming = await _db.Workshops
+            Upcoming = await _db.Workshops.AsNoTracking()
                 .Include(w => w.Hall)
                 .Where(w => w.Status != WorkshopStatus.Completed && w.EndDateTime >= today)
                 .OrderBy(w => w.StartDateTime)

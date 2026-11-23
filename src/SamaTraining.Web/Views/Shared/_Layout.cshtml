@@ -1,4 +1,4 @@
-﻿@{
+@{
     var settings = AppOptions.Value;
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     string Active(params string[] names) => names.Contains(controller, StringComparer.OrdinalIgnoreCase) ? "active" : "";
@@ -8,10 +8,10 @@
     var adminOpen = Active("Users", "Roles") == "active" ? "active open" : "";
 }
 <!doctype html>
-<html lang="en" class="layout-menu-fixed layout-compact" data-assets-path="/assets/" data-template="vertical-menu-template-free">
+<html lang="@UiText.Lang" dir="@(UiText.IsArabic ? "rtl" : "ltr")" class="layout-menu-fixed layout-compact" data-assets-path="/assets/" data-template="vertical-menu-template-free">
 <head>
     <partial name="_Head" />
-    <title>@ViewData["Title"] | @settings.SystemName</title>
+    <title>@ViewData["Title"] | @L[settings.SystemName]</title>
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
@@ -23,7 +23,7 @@
             <div class="app-brand demo">
                 <a asp-controller="Dashboard" asp-action="Index" class="app-brand-link">
                     <span class="app-brand-logo demo sama-logo"><i class="icon-base ri ri-graduation-cap-fill"></i></span>
-                    <span class="app-brand-text demo menu-text fw-semibold ms-2 sama-brand">SAMA Training</span>
+                    <span class="app-brand-text demo menu-text fw-semibold ms-2 sama-brand">@L["SAMA Training"]</span>
                 </a>
                 <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
                     <i class="menu-toggle-icon d-xl-inline-block align-middle"></i>
@@ -38,18 +38,18 @@
                     <li class="menu-item @Active("Dashboard")">
                         <a asp-controller="Dashboard" asp-action="Index" class="menu-link">
                             <i class="menu-icon icon-base ri ri-home-smile-line"></i>
-                            <div>Dashboard</div>
+                            <div>@L["Dashboard"]</div>
                         </a>
                     </li>
                 }
 
                 @if (User.Can(Permissions.WorkshopsView))
                 {
-                    <li class="menu-header mt-5"><span class="menu-header-text">Training</span></li>
+                    <li class="menu-header mt-5"><span class="menu-header-text">@L["Training"]</span></li>
                     <li class="menu-item @Active("Workshops", "Expenses")">
                         <a asp-controller="Workshops" asp-action="Index" class="menu-link">
                             <i class="menu-icon icon-base ri ri-presentation-line"></i>
-                            <div>Workshops</div>
+                            <div>@L["Workshops"]</div>
                         </a>
                     </li>
                     @if (User.Can(Permissions.WorkshopsManage))
@@ -57,7 +57,7 @@
                         <li class="menu-item">
                             <a asp-controller="Workshops" asp-action="Create" class="menu-link">
                                 <i class="menu-icon icon-base ri ri-add-circle-line"></i>
-                                <div>New Workshop</div>
+                                <div>@L["New Workshop"]</div>
                             </a>
                         </li>
                     }
@@ -68,25 +68,25 @@
                     <li class="menu-item @Active("Reports")">
                         <a asp-controller="Reports" asp-action="Index" class="menu-link">
                             <i class="menu-icon icon-base ri ri-bar-chart-box-line"></i>
-                            <div>Reports</div>
+                            <div>@L["Reports"]</div>
                         </a>
                     </li>
                 }
 
                 @if (User.Can(Permissions.SettingsManage))
                 {
-                    <li class="menu-header mt-5"><span class="menu-header-text">Settings</span></li>
+                    <li class="menu-header mt-5"><span class="menu-header-text">@L["Settings"]</span></li>
                     <li class="menu-item @settingsOpen">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ri ri-settings-4-line"></i>
-                            <div>Workshop Settings</div>
+                            <div>@L["Workshop Settings"]</div>
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item @Active("ExpenseCategories")">
-                                <a asp-controller="ExpenseCategories" asp-action="Index" class="menu-link"><div>Expense Categories</div></a>
+                                <a asp-controller="ExpenseCategories" asp-action="Index" class="menu-link"><div>@L["Expense Categories"]</div></a>
                             </li>
                             <li class="menu-item @Active("Halls")">
-                                <a asp-controller="Halls" asp-action="Index" class="menu-link"><div>Halls &amp; Locations</div></a>
+                                <a asp-controller="Halls" asp-action="Index" class="menu-link"><div>@L["Halls & Locations"]</div></a>
                             </li>
                         </ul>
                     </li>
@@ -94,18 +94,18 @@
 
                 @if (User.Can(Permissions.UsersManage))
                 {
-                    <li class="menu-header mt-5"><span class="menu-header-text">Administration</span></li>
+                    <li class="menu-header mt-5"><span class="menu-header-text">@L["Administration"]</span></li>
                     <li class="menu-item @adminOpen">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon icon-base ri ri-shield-user-line"></i>
-                            <div>User Management</div>
+                            <div>@L["User Management"]</div>
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item @Active("Users")">
-                                <a asp-controller="Users" asp-action="Index" class="menu-link"><div>Users</div></a>
+                                <a asp-controller="Users" asp-action="Index" class="menu-link"><div>@L["Users"]</div></a>
                             </li>
                             <li class="menu-item @Active("Roles")">
-                                <a asp-controller="Roles" asp-action="Index" class="menu-link"><div>Roles &amp; Permissions</div></a>
+                                <a asp-controller="Roles" asp-action="Index" class="menu-link"><div>@L["Roles & Permissions"]</div></a>
                             </li>
                         </ul>
                     </li>
@@ -129,12 +129,15 @@
                         <form asp-controller="Workshops" asp-action="Index" method="get" class="navbar-nav align-items-center">
                             <div class="nav-item d-flex align-items-center">
                                 <i class="icon-base ri ri-search-line icon-lg lh-0"></i>
-                                <input type="text" name="Search" class="form-control border-0 shadow-none" placeholder="Search workshops..." aria-label="Search workshops" />
+                                <input type="text" name="Search" class="form-control border-0 shadow-none" placeholder="@L["Search workshops..."]" aria-label="@L["Search workshops"]" />
                             </div>
                         </form>
                     }
 
                     <ul class="navbar-nav flex-row align-items-center ms-md-auto">
+                        <li class="nav-item me-2 me-xl-1">
+                            <partial name="_LanguageSwitch" />
+                        </li>
                         @await Component.InvokeAsync("CapacityAlerts")
                         <li class="nav-item navbar-dropdown dropdown-user dropdown">
                             <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown">
@@ -161,7 +164,7 @@
                                 <li><div class="dropdown-divider my-1"></div></li>
                                 <li>
                                     <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
-                                        <i class="icon-base ri ri-lock-password-line icon-md me-3"></i><span>Change Password</span>
+                                        <i class="icon-base ri ri-lock-password-line icon-md me-3"></i><span>@L["Change Password"]</span>
                                     </a>
                                 </li>
                                 <li><div class="dropdown-divider my-1"></div></li>
@@ -169,7 +172,7 @@
                                     <div class="d-grid px-4 pt-2 pb-1">
                                         <form asp-controller="Account" asp-action="Logout" method="post">
                                             <button type="submit" class="btn btn-danger d-flex w-100 justify-content-center">
-                                                <small class="align-middle">Logout</small>
+                                                <small class="align-middle">@L["Logout"]</small>
                                                 <i class="icon-base ri ri-logout-box-r-line ms-2 icon-xs"></i>
                                             </button>
                                         </form>
@@ -191,8 +194,8 @@
                 <footer class="content-footer footer bg-footer-theme">
                     <div class="container-xxl">
                         <div class="footer-container d-flex align-items-center justify-content-between py-4 flex-md-row flex-column">
-                            <div class="mb-2 mb-md-0">&copy; @DateTime.Now.Year @settings.OrganizationName — @settings.SystemName</div>
-                            <div class="text-body-secondary small">Phase One</div>
+                            <div class="mb-2 mb-md-0">&copy; @DateTime.Now.Year @L[settings.OrganizationName] — @L[settings.SystemName]</div>
+                            <div class="text-body-secondary small">@L["Phase One"]</div>
                         </div>
                     </div>
                 </footer>

@@ -40,6 +40,7 @@ public class WorkshopReportRow
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameAr { get; set; }
     public DateTime StartDateTime { get; set; }
     public string Country { get; set; } = string.Empty;
     public string CountryName { get; set; } = string.Empty;

@@ -23,6 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Arabic UI text, embedded so it loads once from memory. -->
+    <EmbeddedResource Include="Resources\ar.json" />
+    <Content Remove="Resources\ar.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="SamaTraining.Tests" />
   </ItemGroup>
 

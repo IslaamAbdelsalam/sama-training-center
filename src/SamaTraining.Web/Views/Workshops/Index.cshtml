@@ -1,16 +1,16 @@
 @model WorkshopIndexViewModel
 @{
-    ViewData["Title"] = "Workshops";
+    ViewData["Title"] = L["Workshops"];
     var f = Model.Filter;
 }
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-6">
     <div>
-        <h4 class="mb-1">Workshops</h4>
-        <p class="mb-0 text-body-secondary">@Model.Items.Count workshop(s) found</p>
+        <h4 class="mb-1">@L["Workshops"]</h4>
+        <p class="mb-0 text-body-secondary">@L["{0} workshops found", Model.Items.Count]</p>
     </div>
     @if (User.Can(Permissions.WorkshopsManage))
     {
-        <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>New workshop</a>
+        <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>@L["New workshop"]</a>
     }
 </div>
 
@@ -18,48 +18,48 @@
     <div class="card-body">
         <form asp-action="Index" method="get" class="row g-4 align-items-end">
             <div class="col-md-2">
-                <label class="form-label" for="Search">Name</label>
-                <input type="text" id="Search" name="Search" value="@f.Search" class="form-control" placeholder="Search by name" />
+                <label class="form-label" for="Search">@L["Name"]</label>
+                <input type="text" id="Search" name="Search" value="@f.Search" class="form-control" placeholder="@L["Search by name"]" />
             </div>
             <div class="col-6 col-md-2">
-                <label class="form-label" for="Status">Status</label>
+                <label class="form-label" for="Status">@L["Status"]</label>
                 <select id="Status" name="Status" class="form-select">
-                    <option value="">All</option>
+                    <option value="">@L["All"]</option>
                     @foreach (var s in Enum.GetValues<WorkshopStatus>())
                     {
-                        <!option value="@s" selected="@(f.Status == s)">@s</!option>
+                        <!option value="@s" selected="@(f.Status == s)">@UiText.Status(s)</!option>
                     }
                 </select>
             </div>
             <div class="col-6 col-md-2">
-                <label class="form-label" for="Type">Type</label>
+                <label class="form-label" for="Type">@L["Type"]</label>
                 <select id="Type" name="Type" class="form-select">
-                    <option value="">All</option>
-                    <!option value="@WorkshopType.Online" selected="@(f.Type == WorkshopType.Online)">Online</!option>
-                    <!option value="@WorkshopType.OnSite" selected="@(f.Type == WorkshopType.OnSite)">On-site</!option>
+                    <option value="">@L["All"]</option>
+                    <!option value="@WorkshopType.Online" selected="@(f.Type == WorkshopType.Online)">@L["Online"]</!option>
+                    <!option value="@WorkshopType.OnSite" selected="@(f.Type == WorkshopType.OnSite)">@L["On-site"]</!option>
                 </select>
             </div>
             <div class="col-6 col-md-2">
-                <label class="form-label" for="Country">Country</label>
+                <label class="form-label" for="Country">@L["Country"]</label>
                 <select id="Country" name="Country" class="form-select">
-                    <option value="">All</option>
+                    <option value="">@L["All"]</option>
                     @foreach (var c in AppOptions.Value.GetCountries())
                     {
-                        <!option value="@c.Code" selected="@(f.Country == c.Code)">@c.Name</!option>
+                        <!option value="@c.Code" selected="@(f.Country == c.Code)">@UiText.Pick(c.Name, c.NameAr)</!option>
                     }
                 </select>
             </div>
             <div class="col-6 col-md-2">
-                <label class="form-label" for="From">From</label>
+                <label class="form-label" for="From">@L["From"]</label>
                 <input type="date" id="From" name="From" value="@(f.From?.ToString("yyyy-MM-dd"))" class="form-control" />
             </div>
             <div class="col-6 col-md-2">
-                <label class="form-label" for="To">To</label>
+                <label class="form-label" for="To">@L["To"]</label>
                 <input type="date" id="To" name="To" value="@(f.To?.ToString("yyyy-MM-dd"))" class="form-control" />
             </div>
             <div class="col-12 d-flex gap-2">
-                <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-filter-3-line me-1"></i>Filter</button>
-                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+                <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">@L["Reset"]</a>
             </div>
         </form>
     </div>
@@ -70,40 +70,40 @@
         <table class="table table-hover">
             <thead>
             <tr>
-                <th>Workshop</th>
-                <th>Date &amp; time</th>
-                <th>Type / place</th>
-                <th>Country</th>
-                <th>Status</th>
-                <th>Registration</th>
-                <th class="text-end">Students</th>
+                <th>@L["Workshop"]</th>
+                <th>@L["Date & time"]</th>
+                <th>@L["Type / place"]</th>
+                <th>@L["Country"]</th>
+                <th>@L["Status"]</th>
+                <th>@L["Registration"]</th>
+                <th class="text-end">@L["Students"]</th>
             </tr>
             </thead>
             <tbody class="table-border-bottom-0">
             @if (Model.Items.Count == 0)
             {
-                <tr><td colspan="7" class="text-center text-body-secondary py-6">No workshops match these filters.</td></tr>
+                <tr><td colspan="7" class="text-center text-body-secondary py-6">@L["No workshops match these filters."]</td></tr>
             }
             @foreach (var w in Model.Items)
             {
                 <tr>
-                    <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@w.Name</a></td>
-                    <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime)<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")@(w.EndDateTime.Date > w.StartDateTime.Date ? " daily" : "")</small></td>
+                    <td><a asp-action="Details" asp-route-id="@w.Id" class="fw-medium">@UiText.Pick(w.Name, w.NameAr)</a></td>
+                    <td class="text-nowrap">@DisplayFormat.ShortDates(w.StartDateTime, w.EndDateTime)<small class="d-block text-body-secondary">@w.StartDateTime.ToString("HH:mm")–@w.EndDateTime.ToString("HH:mm")@(w.EndDateTime.Date > w.StartDateTime.Date ? " " + L["daily"] : "")</small></td>
                     <td>
                         @if (w.Type == WorkshopType.Online)
                         {
-                            <span><i class="icon-base ri ri-global-line me-1"></i>Online</span>
+                            <span><i class="icon-base ri ri-global-line me-1"></i>@L["Online"]</span>
                         }
                         else
                         {
-                            <span><i class="icon-base ri ri-map-pin-line me-1"></i>@(w.HallName ?? "On-site")</span>
+                            <span><i class="icon-base ri ri-map-pin-line me-1"></i>@(w.HallName != null ? UiText.Pick(w.HallName, w.HallNameAr) : L["On-site"])</span>
                         }
                     </td>
-                    <td>@AppOptions.Value.CountryName(w.Country)</td>
+                    <td>@L[AppOptions.Value.CountryName(w.Country)]</td>
                     <td><partial name="_StatusBadge" model="w.Status" /></td>
                     <td>
-                        @if (w.RegistrationOpen) { <span class="badge bg-label-primary">Open</span> }
-                        else { <span class="badge bg-label-secondary">Closed</span> }
+                        @if (w.RegistrationOpen) { <span class="badge bg-label-primary">@L["Open"]</span> }
+                        else { <span class="badge bg-label-secondary">@L["Closed"]</span> }
                     </td>
                     <td class="text-end">@w.Registrations</td>
                 </tr>

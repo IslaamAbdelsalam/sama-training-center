@@ -67,7 +67,7 @@ public class ExpensesController : AppController
             var keepingInactive = existing != null && existing.ExpenseCategoryId == model.ExpenseCategoryId;
             if (category == null || (!category.IsActive && !keepingInactive))
             {
-                ModelState.AddModelError(nameof(model.ExpenseCategoryId), "Choose an active expense type.");
+                ModelState.AddModelError(nameof(model.ExpenseCategoryId), UiText.Get("Choose an active expense type."));
             }
         }
 
@@ -99,7 +99,7 @@ public class ExpensesController : AppController
         await _db.SaveChangesAsync();
 
         var amount = MoneyFormat.Format(e.Amount, w.CurrencyCode);
-        Success(isNew ? "Expense added" : "Expense updated", $"{amount} recorded for \"{w.Name}\".");
+        Success(isNew ? "Expense added" : "Expense updated", UiText.Format("{0} recorded for \"{1}\".", amount, w.Name));
         Highlight(e.Id);
 
         if (isNew && addAnother)
@@ -121,7 +121,7 @@ public class ExpensesController : AppController
         var amount = MoneyFormat.Format(e.Amount, e.Workshop?.CurrencyCode);
         _db.WorkshopExpenses.Remove(e);
         await _db.SaveChangesAsync();
-        Success("Expense deleted", $"{amount} was removed from the workshop total.");
+        Success("Expense deleted", UiText.Format("{0} was removed from the workshop total.", amount));
         return RedirectToAction("Details", "Workshops", new { id = workshopId, tab = "expenses" });
     }
 

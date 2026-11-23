@@ -70,7 +70,7 @@ public class WorkshopService
         var workshop = await _db.Workshops.FindAsync(workshopId);
         if (workshop == null)
         {
-            return OperationResult.Fail("Workshop not found.");
+            return OperationResult.Fail(UiText.Get("Workshop not found."));
         }
 
         var forward = NextStatus(workshop.Status) == target;
@@ -79,7 +79,7 @@ public class WorkshopService
         {
             return OperationResult.Fail(backward
                 ? "You don't have permission to reverse a workshop status."
-                : $"A {workshop.Status} workshop can't move to {target}. Status moves one step at a time: Pending ↔ Ongoing ↔ Completed.");
+                : UiText.Format("A {0} workshop can't move to {1}. Status moves one step at a time: Pending ↔ Ongoing ↔ Completed.", UiText.Status(workshop.Status), UiText.Status(target)));
         }
 
         var now = DateTime.UtcNow;
@@ -120,12 +120,12 @@ public class WorkshopService
         var workshop = await _db.Workshops.FindAsync(workshopId);
         if (workshop == null)
         {
-            return OperationResult.Fail("Workshop not found.");
+            return OperationResult.Fail(UiText.Get("Workshop not found."));
         }
 
         if (workshop.Status == WorkshopStatus.Completed)
         {
-            return OperationResult.Fail("Registration cannot be opened for a completed workshop.");
+            return OperationResult.Fail(UiText.Get("Registration cannot be opened for a completed workshop."));
         }
 
         if (workshop.RegistrationOpen)
@@ -148,7 +148,7 @@ public class WorkshopService
         var workshop = await _db.Workshops.FindAsync(workshopId);
         if (workshop == null)
         {
-            return OperationResult.Fail("Workshop not found.");
+            return OperationResult.Fail(UiText.Get("Workshop not found."));
         }
 
         if (!workshop.RegistrationOpen)
@@ -171,7 +171,7 @@ public class WorkshopService
         var workshop = await _db.Workshops.FindAsync(workshopId);
         if (workshop == null)
         {
-            return OperationResult.Fail("Workshop not found.");
+            return OperationResult.Fail(UiText.Get("Workshop not found."));
         }
 
         AddHistory(workshop, WorkshopHistoryAction.LinkRegenerated, userName, DateTime.UtcNow);
@@ -219,12 +219,12 @@ public class WorkshopService
     public async Task<ParticipantChange> CancelRegistrationAsync(int registrationId, string? userName, string? reason)
     {
         var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
-        if (r == null) return new ParticipantChange(false, "Registration not found.");
+        if (r == null) return new ParticipantChange(false, UiText.Get("Registration not found."));
         if (r.IsCancelled) return new ParticipantChange(true, Name: r.FullName);
         if (r.Workshop!.Status == WorkshopStatus.Completed)
-            return new ParticipantChange(false, "The workshop is completed, so its participants can't change.", r.FullName);
+            return new ParticipantChange(false, UiText.Get("The workshop is completed, so its participants can't change."), r.FullName);
         if (await _db.FeeCollections.AnyAsync(c => c.RegistrationId == r.Id))
-            return new ParticipantChange(false, $"{r.FullName} has paid, so the registration can't be cancelled. Delete the payment first if it was recorded by mistake.", r.FullName);
+            return new ParticipantChange(false, UiText.Format("{0} has paid, so the registration can't be cancelled. Delete the payment first if it was recorded by mistake.", r.FullName), r.FullName);
 
         var now = DateTime.UtcNow;
         r.IsCancelled = true;
@@ -248,9 +248,9 @@ public class WorkshopService
     public async Task<ParticipantChange> RestoreRegistrationAsync(int registrationId, string? userName)
     {
         var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
-        if (r == null) return new ParticipantChange(false, "Registration not found.");
+        if (r == null) return new ParticipantChange(false, UiText.Get("Registration not found."));
         if (r.Workshop!.Status == WorkshopStatus.Completed)
-            return new ParticipantChange(false, "The workshop is completed, so its participants can't change.", r.FullName);
+            return new ParticipantChange(false, UiText.Get("The workshop is completed, so its participants can't change."), r.FullName);
 
         if (r.IsCancelled)
         {

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using SamaTraining.Web.Security;
 using SamaTraining.Web.Services;
 
@@ -11,8 +12,13 @@ namespace SamaTraining.Web.ViewComponents;
 public class CapacityAlertsViewComponent : ViewComponent
 {
     private readonly WorkshopService _service;
+    private readonly IMemoryCache _cache;
 
-    public CapacityAlertsViewComponent(WorkshopService service) => _service = service;
+    public CapacityAlertsViewComponent(WorkshopService service, IMemoryCache cache)
+    {
+        _service = service;
+        _cache = cache;
+    }
 
     public async Task<IViewComponentResult> InvokeAsync()
     {
@@ -21,6 +27,12 @@ public class CapacityAlertsViewComponent : ViewComponent
             return Content(string.Empty);
         }
 
-        return View(await _service.OverCapacityAsync());
+        // Shown on every page: one small query at most every 30 seconds for the whole site.
+        var alerts = await _cache.GetOrCreateAsync("capacity-alerts", e =>
+        {
+            e.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+            return _service.OverCapacityAsync();
+        });
+        return View(alerts ?? new());
     }
 }

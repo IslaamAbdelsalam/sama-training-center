@@ -3,6 +3,8 @@
 @inject PhoneNumberService Phones
 @{
     Layout = null;
+    ViewData["PublicPage"] = true;
+    ViewData["NeedsArabicFont"] = true;
     var l = Model.Lang;
     var isAr = l == "ar";
     var other = isAr ? "en" : "ar";

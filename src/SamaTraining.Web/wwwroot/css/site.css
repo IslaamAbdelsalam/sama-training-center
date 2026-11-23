@@ -287,3 +287,19 @@ html[lang="ar"] body { font-family: "Cairo", "Inter", sans-serif; }
 .row-cancelled .fw-medium, .row-cancelled td:not(:last-child) { color: var(--bs-secondary-color) !important; }
 .row-cancelled .fw-medium { text-decoration: line-through; text-decoration-color: rgba(var(--bs-danger-rgb), .5); }
 .row-cancelled .badge { text-decoration: none; }
+
+/* ---- Arabic (right-to-left) staff screens: mirror the few custom left/right rules ---- */
+[dir="rtl"] .timeline-simple { padding-right: 0; }
+[dir="rtl"] .timeline-simple li { padding: 0 1.5rem 1rem 0; border-left: 0; border-right: 2px solid var(--bs-border-color); margin-left: 0; margin-right: .4rem; }
+[dir="rtl"] .timeline-simple li::before { left: auto; right: -7px; }
+[dir="rtl"] .timeline-simple li:last-child { border-right-color: transparent; }
+[dir="rtl"] .app-toast { border-left: 0; border-right: 4px solid var(--bs-info); }
+[dir="rtl"] .app-toast-success { border-right-color: var(--bs-success); }
+[dir="rtl"] .app-toast-danger { border-right-color: var(--bs-danger); }
+[dir="rtl"] .app-toast-warning { border-right-color: var(--bs-warning); }
+[dir="rtl"] .app-toast-progress { transform-origin: right; }
+[dir="rtl"] .ws-step::before { left: 50%; right: -50%; }
+/* Numbers, phone numbers, amounts and codes keep left-to-right order inside Arabic text. */
+[dir="rtl"] .currency-code, [dir="rtl"] .font-monospace, [dir="rtl"] input[type="number"], [dir="rtl"] input[type="email"], [dir="rtl"] input[type="url"], [dir="rtl"] input[type="tel"] { direction: ltr; }
+[dir="rtl"] input[type="number"], [dir="rtl"] input[type="email"], [dir="rtl"] input[type="url"] { text-align: right; }
+.lang-switch { white-space: nowrap; }

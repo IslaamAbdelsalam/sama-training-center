@@ -1,12 +1,12 @@
 @model WorkshopFormModel
 @{
-    ViewData["Title"] = Model.Id == 0 ? "New Workshop" : "Edit Workshop";
+    ViewData["Title"] = Model.Id == 0 ? L["New Workshop"] : L["Edit Workshop"];
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
     <h4 class="mb-0">@ViewData["Title"]</h4>
     @if (Model.Id != 0)
     {
-        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Back to workshop</a>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">@L["Back to workshop"]</a>
     }
 </div>
 
@@ -18,14 +18,14 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-1">Workshop details</h5>
-                    <small class="text-body-secondary">The English page shows the English text and the Arabic page shows the Arabic text. Arabic description and agenda are optional; if empty, the English text is shown.</small>
+                    <h5 class="mb-1">@L["Workshop details"]</h5>
+                    <small class="text-body-secondary">@L["The English page shows the English text and the Arabic page shows the Arabic text. Arabic description and agenda are optional; if empty, the English text is shown."]</small>
                 </div>
                 <div class="card-body">
                     <div class="row g-5">
                         <div class="col-md-6">
                             <div class="form-floating form-floating-outline">
-                                <input asp-for="Name" class="form-control" placeholder="Workshop name" dir="ltr" autofocus />
+                                <input asp-for="Name" class="form-control" placeholder="@L["Workshop name"]" dir="ltr" autofocus />
                                 <label asp-for="Name"></label>
                             </div>
                             <span asp-validation-for="Name" class="text-danger small"></span>
@@ -39,7 +39,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating form-floating-outline">
-                                <textarea asp-for="Description" class="form-control" placeholder="Short description" style="height: 90px" dir="ltr"></textarea>
+                                <textarea asp-for="Description" class="form-control" placeholder="@L["Short description"]" style="height: 90px" dir="ltr"></textarea>
                                 <label asp-for="Description"></label>
                             </div>
                             <span asp-validation-for="Description" class="text-danger small"></span>
@@ -57,21 +57,21 @@
 
             <div class="card mt-6">
                 <div class="card-header">
-                    <h5 class="mb-1">Agenda &amp; content</h5>
-                    <small class="text-body-secondary">Use headings, bold, lists, colours and links. The formatting is shown exactly like this on the registration page.</small>
+                    <h5 class="mb-1">@L["Agenda & content"]</h5>
+                    <small class="text-body-secondary">@L["Use headings, bold, lists, colours and links. The formatting is shown exactly like this on the registration page."]</small>
                 </div>
                 <div class="card-body">
                     <div class="row g-5">
                         <div class="col-12 rich-editor-group">
-                            <label class="form-label" for="Content">Agenda (English)</label>
+                            <label class="form-label" for="Content">@L["Agenda (English)"]</label>
                             <textarea asp-for="Content" class="d-none"></textarea>
-                            <div class="rich-editor" data-rich-editor="Content" dir="ltr" data-placeholder="Topics, trainer, requirements…"></div>
+                            <div class="rich-editor" data-rich-editor="Content" dir="ltr" data-placeholder="@L["Topics, trainer, requirements…"]"></div>
                         </div>
                         <div class="col-12 rich-editor-group" dir="rtl">
-                            <label class="form-label" for="ContentAr">المحاور / المحتوى (Arabic)</label>
+                            <label class="form-label" for="ContentAr">@L["المحاور / المحتوى (Arabic)"]</label>
                             <textarea asp-for="ContentAr" class="d-none"></textarea>
                             <div class="rich-editor" data-rich-editor="ContentAr" dir="rtl" data-placeholder="المحاور، المدرب، المتطلبات…"></div>
-                            <div class="form-text" dir="ltr" style="text-align:right">Optional. If empty, the English agenda is shown on the Arabic page.</div>
+                            <div class="form-text" dir="ltr" style="text-align:right">@L["Optional. If empty, the English agenda is shown on the Arabic page."]</div>
                         </div>
                     </div>
                 </div>
@@ -80,17 +80,17 @@
 
         <div class="col-lg-4">
             <div class="card mb-6">
-                <h5 class="card-header">Schedule</h5>
+                <h5 class="card-header">@L["Schedule"]</h5>
                 <div class="card-body">
-                    <div class="btn-group w-100 mb-5" role="group" aria-label="Schedule">
+                    <div class="btn-group w-100 mb-5" role="group" aria-label="@L["Schedule"]">
                         <input type="radio" class="btn-check" name="IsMultiDay" id="sched-single" value="false" checked="@(!Model.IsMultiDay)" />
-                        <label class="btn btn-outline-primary" for="sched-single"><i class="icon-base ri ri-calendar-line me-1"></i>Single day</label>
+                        <label class="btn btn-outline-primary" for="sched-single"><i class="icon-base ri ri-calendar-line me-1"></i>@L["Single day"]</label>
                         <input type="radio" class="btn-check" name="IsMultiDay" id="sched-range" value="true" checked="@Model.IsMultiDay" />
-                        <label class="btn btn-outline-primary" for="sched-range"><i class="icon-base ri ri-calendar-2-line me-1"></i>Date range</label>
+                        <label class="btn btn-outline-primary" for="sched-range"><i class="icon-base ri ri-calendar-2-line me-1"></i>@L["Date range"]</label>
                     </div>
                     <div class="form-floating form-floating-outline mb-5">
                         <input asp-for="Date" type="date" class="form-control" />
-                        <label asp-for="Date" id="start-date-label">@(Model.IsMultiDay ? "Start date" : "Date")</label>
+                        <label asp-for="Date" id="start-date-label">@(Model.IsMultiDay ? L["Start date"] : L["Date"])</label>
                         <span asp-validation-for="Date" class="text-danger small"></span>
                     </div>
                     <div id="end-date-group" class="form-floating form-floating-outline mb-5 @(Model.IsMultiDay ? "" : "d-none")">
@@ -114,57 +114,57 @@
                             <span asp-validation-for="EndTime" class="text-danger small"></span>
                         </div>
                     </div>
-                    <div class="form-text mt-2">For a date range, the hours apply to each day.</div>
+                    <div class="form-text mt-2">@L["For a date range, the hours apply to each day."]</div>
                 </div>
             </div>
 
             <div class="card">
-                <h5 class="card-header">Delivery</h5>
+                <h5 class="card-header">@L["Delivery"]</h5>
                 <div class="card-body">
                     <div class="form-floating form-floating-outline mb-2">
                         <select id="Country" name="@(Model.CountryLocked ? "" : "Country")" class="form-select" @(Model.CountryLocked ? "disabled" : "")>
-                            <option value="">Choose…</option>
+                            <option value="">@L["Choose…"]</option>
                             @foreach (var c in AppOptions.Value.GetCountries())
                             {
-                                <!option value="@c.Code" data-currency="@c.Currency" selected="@(Model.Country == c.Code)">@c.Name</!option>
+                                <!option value="@c.Code" data-currency="@c.Currency" selected="@(Model.Country == c.Code)">@UiText.Pick(c.Name, c.NameAr)</!option>
                             }
                         </select>
-                        <label for="Country">Country</label>
+                        <label for="Country">@L["Country"]</label>
                     </div>
                     @if (Model.CountryLocked)
                     {
                         <input type="hidden" name="Country" value="@Model.Country" />
                     }
                     <div class="form-text mb-5">
-                        Currency: <span class="badge bg-label-primary" id="currency-hint">—</span>
-                        @if (Model.CountryLocked) { <span class="d-block mt-1">Locked because expenses are already recorded.</span> }
-                        else { <span class="d-block mt-1">All expenses for this workshop use this currency.</span> }
+                        @L["Currency:"] <span class="badge bg-label-primary" id="currency-hint">—</span>
+                        @if (Model.CountryLocked) { <span class="d-block mt-1">@L["Locked because expenses are already recorded."]</span> }
+                        else { <span class="d-block mt-1">@L["All expenses for this workshop use this currency."]</span> }
                     </div>
                     <span asp-validation-for="Country" class="text-danger small d-block mb-3"></span>
                     <div class="form-floating form-floating-outline mb-5">
                         <select asp-for="Type" class="form-select" asp-items="Html.GetEnumSelectList<WorkshopType>()">
-                            <option value="">Choose…</option>
+                            <option value="">@L["Choose…"]</option>
                         </select>
                         <label asp-for="Type"></label>
                         <span asp-validation-for="Type" class="text-danger small"></span>
                     </div>
                     <div id="hall-group" class="form-floating form-floating-outline mb-5">
                         <select asp-for="HallId" class="form-select" asp-items="Model.Halls">
-                            <option value="">Choose a hall…</option>
+                            <option value="">@L["Choose a hall…"]</option>
                         </select>
                         <label asp-for="HallId"></label>
                         <span asp-validation-for="HallId" class="text-danger small"></span>
                     </div>
                     <div id="link-group" class="form-floating form-floating-outline mb-5">
-                        <input asp-for="MeetingLink" class="form-control" placeholder="https://" />
+                        <input asp-for="MeetingLink" class="form-control" placeholder="@L["https://"]" />
                         <label asp-for="MeetingLink"></label>
                         <span asp-validation-for="MeetingLink" class="text-danger small"></span>
                     </div>
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Capacity" class="form-control" placeholder="Capacity" />
+                        <input asp-for="Capacity" class="form-control" placeholder="@L["Capacity"]" />
                         <label asp-for="Capacity"></label>
                         <span asp-validation-for="Capacity" class="text-danger small"></span>
-                        <div class="form-text">Required. Registration stops when this number is reached. Not shown to applicants.</div>
+                        <div class="form-text">@L["Required. Registration stops when this number is reached. Not shown to applicants."]</div>
                     </div>
                     <div class="mt-5">
                         <div class="input-group input-group-merge">
@@ -175,21 +175,21 @@
                             <span class="input-group-text" data-currency-label>—</span>
                         </div>
                         <span asp-validation-for="Fee" class="text-danger small"></span>
-                        <div class="form-text">Required. Per participant, in the workshop's currency. Enter 0 for a free workshop.</div>
+                        <div class="form-text">@L["Required. Per participant, in the workshop's currency. Enter 0 for a free workshop."]</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-12">
-            <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@(Model.Id == 0 ? "Create workshop" : "Save changes")</button>
+            <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@(Model.Id == 0 ? L["Create workshop"] : L["Save changes"])</button>
             @if (Model.Id == 0)
             {
-                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                <a asp-action="Index" class="btn btn-outline-secondary">@L["Cancel"]</a>
             }
             else
             {
-                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">@L["Cancel"]</a>
             }
         </div>
     </div>

@@ -59,10 +59,10 @@ public static class DisplayFormat
 
     public static string Label(PaymentStatus s) => s switch
     {
-        PaymentStatus.Free => "Free",
-        PaymentStatus.Paid => "Paid",
-        PaymentStatus.PartiallyPaid => "Partially paid",
-        _ => "Unpaid"
+        PaymentStatus.Free => UiText.Get("Free"),
+        PaymentStatus.Paid => UiText.Get("Paid"),
+        PaymentStatus.PartiallyPaid => UiText.Get("Partially paid"),
+        _ => UiText.Get("Unpaid")
     };
 
     public static string BadgeCss(PaymentStatus s) => s switch
@@ -75,19 +75,19 @@ public static class DisplayFormat
 
     public static string Label(PaymentMethod m) => m switch
     {
-        PaymentMethod.BankTransfer => "Bank transfer",
-        PaymentMethod.MobileWallet => "Mobile wallet",
-        PaymentMethod.Other => "Other",
-        _ => "Cash"
+        PaymentMethod.BankTransfer => UiText.Get("Bank transfer"),
+        PaymentMethod.MobileWallet => UiText.Get("Mobile wallet"),
+        PaymentMethod.Other => UiText.Get("Other"),
+        _ => UiText.Get("Cash")
     };
 
     public static string Label(WorkshopHistoryAction a) => a switch
     {
-        WorkshopHistoryAction.RegistrationOpened => "Registration opened",
-        WorkshopHistoryAction.RegistrationClosed => "Registration closed",
-        WorkshopHistoryAction.LinkRegenerated => "New registration link created",
-        WorkshopHistoryAction.ParticipantCancelled => "Registration cancelled",
-        WorkshopHistoryAction.ParticipantRestored => "Cancellation undone",
-        _ => "Status changed"
+        WorkshopHistoryAction.RegistrationOpened => UiText.Get("Registration opened"),
+        WorkshopHistoryAction.RegistrationClosed => UiText.Get("Registration closed"),
+        WorkshopHistoryAction.LinkRegenerated => UiText.Get("New registration link created"),
+        WorkshopHistoryAction.ParticipantCancelled => UiText.Get("Registration cancelled"),
+        WorkshopHistoryAction.ParticipantRestored => UiText.Get("Cancellation undone"),
+        _ => UiText.Get("Status changed")
     };
 }

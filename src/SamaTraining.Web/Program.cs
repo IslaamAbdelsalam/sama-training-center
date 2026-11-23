@@ -94,6 +94,17 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<WorkshopService>();
+
+// Performance: compress pages, CSS and JS (gzip/brotli) and keep small lookups in memory.
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true;
+    o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.Section));
@@ -109,10 +120,22 @@ builder.Services.AddSingleton<PhoneNumberService>();
 builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o =>
     o.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(System.Text.Unicode.UnicodeRanges.All));
 
+// Arabic / English staff screens: one in-memory dictionary for views, validation messages and [Display] names.
+builder.Services.AddSingleton<UiText>();
+builder.Services.AddSingleton<Microsoft.Extensions.Localization.IStringLocalizerFactory, UiStringLocalizerFactory>();
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
-});
+    options.ModelMetadataDetailsProviders.Add(new DefaultValidationMessages());
+    var m = options.ModelBindingMessageProvider;
+    m.SetValueMustNotBeNullAccessor(_ => UiText.Get("This field is required."));
+    m.SetAttemptedValueIsInvalidAccessor((v, f) => UiText.Get("The value is not valid."));
+    m.SetValueIsInvalidAccessor(_ => UiText.Get("The value is not valid."));
+    m.SetValueMustBeANumberAccessor(_ => UiText.Get("Enter a number."));
+    m.SetMissingKeyOrValueAccessor(() => UiText.Get("This field is required."));
+})
+.AddDataAnnotationsLocalization(o => o.DataAnnotationLocalizerProvider = (_, f) => f.Create(typeof(UiText)));
 
 var app = builder.Build();
 
@@ -125,8 +148,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseResponseCompression();
+// Browsers keep theme files for 30 days; files linked with ?v=... (asp-append-version) for a year, since the link changes when the file does.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var versioned = ctx.Context.Request.Query.ContainsKey("v");
+        ctx.Context.Response.Headers.CacheControl = versioned ? "public,max-age=31536000,immutable" : "public,max-age=2592000";
+    }
+});
 
+app.UseMiddleware<UiLanguageMiddleware>();
 app.UseRouting();
 
 app.UseAuthentication();

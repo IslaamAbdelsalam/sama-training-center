@@ -918,4 +918,41 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
         var coordinator = await _app.SignedInUserAsync("coord.cancel", Roles.Coordinator);
         Assert.Contains("Alerts", await coordinator.GetStringAsync("/"));
     }
+
+    [Fact] // Staff screens in Arabic: switch, right-to-left layout, translated menu, labels and validation messages
+    public async Task StaffScreens_SwitchToArabic()
+    {
+        var client = await _app.SignedInAdminAsync();
+
+        // English by default
+        var en = await client.GetStringAsync("/");
+        Assert.Contains("dir=\"ltr\"", en);
+        Assert.Contains("core.css", en);
+        Assert.Contains(">Dashboard<", en);
+
+        // Switch keeps the page and remembers the choice
+        var sw = await client.GetAsync("/Language/Set?lang=ar&returnUrl=%2FWorkshops");
+        Assert.Equal(HttpStatusCode.Redirect, sw.StatusCode);
+        Assert.Equal("/Workshops", sw.Headers.Location!.ToString());
+
+        var ar = await client.GetStringAsync("/");
+        Assert.Contains("lang=\"ar\" dir=\"rtl\"", ar);
+        Assert.Contains("core.rtl.css", ar);
+        Assert.Contains("لوحة التحكم", ar);
+        Assert.Contains("الورش", ar);
+        Assert.Contains("English", ar); // switch back
+
+        // A form with Arabic labels and Arabic validation messages
+        var page = await client.GetStringAsync("/Workshops/Create");
+        Assert.Contains("ورشة جديدة", page);
+        var res = await client.PostAsync("/Workshops/Save", Form(page, new() { ["Id"] = "0", ["Type"] = "Online", ["Country"] = "SD" }));
+        var html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("أدخل عدد المقاعد (السعة).", html);
+        Assert.Contains("اختر تاريخ الورشة.", html);
+
+        // An external link can't be used as the return address
+        var evil = await client.GetAsync("/Language/Set?lang=en&returnUrl=https%3A%2F%2Fevil.example");
+        Assert.Equal("/", evil.Headers.Location!.ToString());
+        Assert.Contains(">Dashboard<", await client.GetStringAsync("/"));
+    }
 }

@@ -49,7 +49,7 @@ public class AccountController : AppController
 
         if (user == null)
         {
-            ModelState.AddModelError(string.Empty, "Invalid username or password.");
+            ModelState.AddModelError(string.Empty, UiText.Get("Invalid username or password."));
             return View(model);
         }
 
@@ -69,18 +69,18 @@ public class AccountController : AppController
         if (result.IsLockedOut)
         {
             _logger.LogWarning("User {User} is locked out.", user.UserName);
-            ModelState.AddModelError(string.Empty, "This account is locked after too many failed attempts. Try again in 15 minutes or ask an administrator to unlock it.");
+            ModelState.AddModelError(string.Empty, UiText.Get("This account is locked after too many failed attempts. Try again in 15 minutes or ask an administrator to unlock it."));
             return View(model);
         }
 
         if (result.IsNotAllowed)
         {
             // The password was correct but the account is deactivated (see ActiveUserSignInManager).
-            ModelState.AddModelError(string.Empty, "This account is deactivated. Contact your system administrator.");
+            ModelState.AddModelError(string.Empty, UiText.Get("This account is deactivated. Contact your system administrator."));
             return View(model);
         }
 
-        ModelState.AddModelError(string.Empty, "Invalid username or password.");
+        ModelState.AddModelError(string.Empty, UiText.Get("Invalid username or password."));
         return View(model);
     }
 
@@ -155,26 +155,26 @@ public class AccountController : AppController
         var user = await _userManager.FindByNameAsync(input) ?? await _userManager.FindByEmailAsync(input);
         if (user == null)
         {
-            ModelState.AddModelError(nameof(model.UserNameOrEmail), "No account was found with this username or e-mail. Check the spelling and try again.");
+            ModelState.AddModelError(nameof(model.UserNameOrEmail), UiText.Get("No account was found with this username or e-mail. Check the spelling and try again."));
             return View(model);
         }
 
         // 2. Can this account receive a reset link?
         if (!user.IsActive)
         {
-            ModelState.AddModelError(string.Empty, "This account is deactivated. Ask your system administrator to reactivate it.");
+            ModelState.AddModelError(string.Empty, UiText.Get("This account is deactivated. Ask your system administrator to reactivate it."));
             return View(model);
         }
 
         if (!HasDeliverableEmail(user.Email))
         {
-            ModelState.AddModelError(string.Empty, "This account has no working e-mail address, so a reset link can't be sent. Ask your system administrator to add your e-mail under Users, or to reset your password.");
+            ModelState.AddModelError(string.Empty, UiText.Get("This account has no working e-mail address, so a reset link can't be sent. Ask your system administrator to add your e-mail under Users, or to reset your password."));
             return View(model);
         }
 
         if (!_email.IsConfigured)
         {
-            ModelState.AddModelError(string.Empty, "Your account was found, but sending e-mails isn't set up on the system yet. Ask your system administrator to reset your password.");
+            ModelState.AddModelError(string.Empty, UiText.Get("Your account was found, but sending e-mails isn't set up on the system yet. Ask your system administrator to reset your password."));
             return View(model);
         }
 
@@ -195,7 +195,7 @@ public class AccountController : AppController
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not send the password reset e-mail.");
-            ModelState.AddModelError(string.Empty, "The reset e-mail couldn't be sent right now. Try again in a few minutes or ask your system administrator.");
+            ModelState.AddModelError(string.Empty, UiText.Get("The reset e-mail couldn't be sent right now. Try again in a few minutes or ask your system administrator."));
             return View(model);
         }
 
@@ -240,7 +240,7 @@ public class AccountController : AppController
         var user = await _userManager.FindByIdAsync(model.UserId);
         if (user == null || !user.IsActive)
         {
-            ModelState.AddModelError(string.Empty, "This reset link is invalid or has expired. Request a new one.");
+            ModelState.AddModelError(string.Empty, UiText.Get("This reset link is invalid or has expired. Request a new one."));
             return View(model);
         }
 

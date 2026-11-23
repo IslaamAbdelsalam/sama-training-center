@@ -53,11 +53,13 @@ public class WorkshopsController : AppController
             {
                 Id = w.Id,
                 Name = w.Name,
+                NameAr = w.NameAr,
                 StartDateTime = w.StartDateTime,
                 EndDateTime = w.EndDateTime,
                 Type = w.Type,
                 Country = w.Country,
                 HallName = w.Hall != null ? w.Hall.Name : null,
+                HallNameAr = w.Hall != null ? w.Hall.NameAr : null,
                 Status = w.Status,
                 RegistrationOpen = w.RegistrationOpen,
                 Registrations = w.Registrations.Count(r => !r.IsCancelled)
@@ -195,28 +197,28 @@ public class WorkshopsController : AppController
         {
             if (model.EndDate == null)
             {
-                ModelState.AddModelError(nameof(model.EndDate), "Choose the end date of the workshop.");
+                ModelState.AddModelError(nameof(model.EndDate), UiText.Get("Choose the end date of the workshop."));
             }
             else if (model.Date.HasValue && model.EndDate.Value.Date < model.Date.Value.Date)
             {
-                ModelState.AddModelError(nameof(model.EndDate), "The end date can't be earlier than the start date.");
+                ModelState.AddModelError(nameof(model.EndDate), UiText.Get("The end date can't be earlier than the start date."));
             }
         }
 
         if (model.StartTime.HasValue && model.EndTime.HasValue && model.EndTime <= model.StartTime)
         {
-            ModelState.AddModelError(nameof(model.EndTime), "End time must be after the start time.");
+            ModelState.AddModelError(nameof(model.EndTime), UiText.Get("End time must be after the start time."));
         }
 
         if (model.Type == WorkshopType.OnSite && model.HallId == null)
         {
-            ModelState.AddModelError(nameof(model.HallId), "Choose a hall or location for an on-site workshop.");
+            ModelState.AddModelError(nameof(model.HallId), UiText.Get("Choose a hall or location for an on-site workshop."));
         }
 
         var country = _settings.FindCountry(model.Country);
         if (model.Country != null && country == null)
         {
-            ModelState.AddModelError(nameof(model.Country), "Choose a country from the list.");
+            ModelState.AddModelError(nameof(model.Country), UiText.Get("Choose a country from the list."));
         }
 
         if (model.Id != 0)
@@ -226,7 +228,7 @@ public class WorkshopsController : AppController
                 && await _db.WorkshopExpenses.AnyAsync(e => e.WorkshopId == model.Id))
             {
                 ModelState.AddModelError(nameof(model.Country),
-                    $"This workshop already has expenses in {existing.CurrencyCode}, so its country can't change.");
+                    UiText.Format("This workshop already has expenses in {0}, so its country can't change.", existing.CurrencyCode));
                 model.CountryLocked = true;
             }
         }
@@ -284,8 +286,9 @@ public class WorkshopsController : AppController
 
         var isNew = model.Id == 0;
         await _db.SaveChangesAsync();
-        if (isNew) Success("Workshop created", $"\"{w.Name}\" is pending. Open registration when you're ready to share the link.");
-        else Success("Changes saved", $"\"{w.Name}\" is up to date.");
+        HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove("capacity-alerts");
+        if (isNew) Success("Workshop created", UiText.Format("\"{0}\" is pending. Open registration when you're ready to share the link.", w.Name));
+        else Success("Changes saved", UiText.Format("\"{0}\" is up to date.", w.Name));
         return RedirectToAction(nameof(Details), new { id = w.Id });
     }
 
@@ -304,7 +307,7 @@ public class WorkshopsController : AppController
 
         _db.Workshops.Remove(w);
         await _db.SaveChangesAsync();
-        Success("Workshop deleted", $"\"{w.Name}\" was removed.");
+        Success("Workshop deleted", UiText.Format("\"{0}\" was removed.", w.Name));
         return RedirectToAction(nameof(Index));
     }
 
@@ -327,9 +330,10 @@ public class WorkshopsController : AppController
     public async Task<IActionResult> CancelRegistration(int id, int registrationId, string? reason)
     {
         var result = await _service.CancelRegistrationAsync(registrationId, CurrentUserName, reason);
+        HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove("capacity-alerts");
         if (result.Success)
         {
-            Success("Registration cancelled", $"{result.Name}'s seat is free again. They can't register for this workshop again; use Undo if this was a mistake.");
+            Success("Registration cancelled", UiText.Format("{0}'s seat is free again. They can't register for this workshop again; use Undo if this was a mistake.", result.Name));
             Highlight("r" + registrationId);
         }
         else Error("Can't cancel", result.Error);
@@ -341,12 +345,13 @@ public class WorkshopsController : AppController
     public async Task<IActionResult> RestoreRegistration(int id, int registrationId)
     {
         var result = await _service.RestoreRegistrationAsync(registrationId, CurrentUserName);
+        HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove("capacity-alerts");
         if (!result.Success) Error("Can't undo the cancellation", result.Error);
         else if (result.OverCapacity)
             Error("Workshop is over capacity",
-                $"{result.Name} is registered again, but the workshop now has {result.Active} participants for {result.Capacity} seats. " +
-                "An administrator needs to increase the capacity or cancel a registration.");
-        else Success("Cancellation undone", $"{result.Name} is registered again and counts toward seats and fees.");
+                UiText.Format("{0} is registered again, but the workshop now has {1} participants for {2} seats. ", result.Name, result.Active, result.Capacity) +
+                UiText.Get("An administrator needs to increase the capacity or cancel a registration."));
+        else Success("Cancellation undone", UiText.Format("{0} is registered again and counts toward seats and fees.", result.Name));
         Highlight("r" + registrationId);
         return RedirectToAction(nameof(Details), new { id, tab = "registrations" });
     }
@@ -356,7 +361,7 @@ public class WorkshopsController : AppController
     public async Task<IActionResult> ReverseStatus(int id, WorkshopStatus target)
     {
         var result = await _service.ChangeStatusAsync(id, target, CurrentUserName, allowReverse: true);
-        if (result.Success) Success("Status reversed", $"The workshop is back to {target}. The change is recorded in History.");
+        if (result.Success) Success("Status reversed", UiText.Format("The workshop is back to {0}. The change is recorded in History.", UiText.Status(target)));
         else Error("Status not changed", result.Error);
         return RedirectToAction(nameof(Details), new { id, tab = "history" });
     }
@@ -442,7 +447,7 @@ public class WorkshopsController : AppController
         model.Halls = await _db.Halls
             .Where(h => h.IsActive || h.Id == currentHallId)
             .OrderBy(h => h.Name)
-            .Select(h => new SelectListItem(h.Location != null ? h.Name + " — " + h.Location : h.Name, h.Id.ToString()))
+            .Select(h => new SelectListItem(h.Location != null ? UiText.Pick(h.Name, h.NameAr) + " — " + UiText.Pick(h.Location, h.LocationAr) : UiText.Pick(h.Name, h.NameAr), h.Id.ToString()))
             .ToListAsync();
     }
 }

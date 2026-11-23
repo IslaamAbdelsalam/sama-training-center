@@ -1,21 +1,21 @@
 @model List<UserListItem>
 @{
-    ViewData["Title"] = "Users";
+    ViewData["Title"] = L["Users"];
     var highlight = TempData["Highlight"] as string;
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
     <div>
-        <h4 class="mb-1">Users</h4>
-        <p class="mb-0 text-body-secondary">Staff accounts that can sign in to the system.</p>
+        <h4 class="mb-1">@L["Users"]</h4>
+        <p class="mb-0 text-body-secondary">@L["Staff accounts that can sign in to the system."]</p>
     </div>
-    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-user-add-line me-1"></i>Add user</a>
+    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-user-add-line me-1"></i>@L["Add user"]</a>
 </div>
 
 <div class="card">
     <div class="table-responsive">
         <table class="table">
             <thead>
-            <tr><th>User</th><th>Username</th><th>Roles</th><th>Status</th><th class="text-end">Actions</th></tr>
+            <tr><th>@L["User"]</th><th>@L["Username"]</th><th>@L["Roles"]</th><th>@L["Status"]</th><th class="text-end">@L["Actions"]</th></tr>
             </thead>
             <tbody class="table-border-bottom-0">
             @foreach (var u in Model)
@@ -35,21 +35,21 @@
                     <td>
                         @foreach (var r in u.Roles)
                         {
-                            <span class="badge bg-label-primary me-1">@r</span>
+                            <span class="badge bg-label-primary me-1">@L[r]</span>
                         }
                     </td>
                     <td>
-                        @if (!u.IsActive) { <span class="badge bg-label-secondary">Inactive</span> }
-                        else if (u.IsLockedOut) { <span class="badge bg-label-danger">Locked</span> }
-                        else { <span class="badge bg-label-success">Active</span> }
+                        @if (!u.IsActive) { <span class="badge bg-label-secondary">@L["Inactive"]</span> }
+                        else if (u.IsLockedOut) { <span class="badge bg-label-danger">@L["Locked"]</span> }
+                        else { <span class="badge bg-label-success">@L["Active"]</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
-                        <a asp-action="ResetPassword" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Reset password"><i class="icon-base ri ri-key-2-line"></i></a>
+                        <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
+                        <a asp-action="ResetPassword" asp-route-id="@u.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Reset password"]"><i class="icon-base ri ri-key-2-line"></i></a>
                         @if (u.IsLockedOut)
                         {
-                            <form asp-action="Unlock" asp-route-id="@u.Id" method="post" class="d-inline" data-confirm="@u.UserName will be able to sign in again." data-confirm-title="Unlock this account?" data-confirm-button="Unlock" data-confirm-style="primary">
-                                <button type="submit" class="btn btn-sm btn-icon btn-text-warning rounded-pill" title="Unlock" data-no-loading><i class="icon-base ri ri-lock-unlock-line"></i></button>
+                            <form asp-action="Unlock" asp-route-id="@u.Id" method="post" class="d-inline" data-confirm="@L["{0} will be able to sign in again.", u.UserName]" data-confirm-title="@L["Unlock this account?"]" data-confirm-button="@L["Unlock"]" data-confirm-style="primary">
+                                <button type="submit" class="btn btn-sm btn-icon btn-text-warning rounded-pill" title="@L["Unlock"]" data-no-loading><i class="icon-base ri ri-lock-unlock-line"></i></button>
                             </form>
                         }
                     </td>

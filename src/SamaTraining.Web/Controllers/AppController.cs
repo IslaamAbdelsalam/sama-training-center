@@ -22,7 +22,8 @@ public abstract class AppController : Controller
     private void Flash(string kind, string title, string? message)
     {
         TempData["FlashKind"] = kind;
-        TempData["FlashTitle"] = title;
-        TempData["FlashMessage"] = message;
+        // Fixed texts are translated here; texts with values are already translated with UiText.Format.
+        TempData["FlashTitle"] = Services.UiText.Get(title);
+        TempData["FlashMessage"] = message == null ? null : Services.UiText.Get(message);
     }
 }

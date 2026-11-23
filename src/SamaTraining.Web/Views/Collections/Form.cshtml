@@ -1,10 +1,10 @@
 @model CollectionFormModel
 @{
-    ViewData["Title"] = Model.Id == 0 ? "Record Payment" : "Edit Payment";
+    ViewData["Title"] = Model.Id == 0 ? L["Record Payment"] : L["Edit Payment"];
 }
 <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="payments" class="small"><i class="icon-base ri ri-arrow-left-line me-1"></i>@Model.WorkshopName</a>
 <h4 class="mb-1 mt-2">@ViewData["Title"]</h4>
-<p class="text-body-secondary mb-6">Registration fee: <strong>@MoneyFormat.Format(Model.Fee, Model.CurrencyCode)</strong> per participant.</p>
+<p class="text-body-secondary mb-6">@L["Registration fee: {0} per participant.", MoneyFormat.Format(Model.Fee, Model.CurrencyCode)]</p>
 
 <div class="card">
     <div class="card-body">
@@ -17,7 +17,7 @@
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
                         <select asp-for="RegistrationId" class="form-select" asp-items="Model.Participants">
-                            <option value="">Choose…</option>
+                            <option value="">@L["Choose…"]</option>
                         </select>
                         <label asp-for="RegistrationId"></label>
                     </div>
@@ -49,14 +49,14 @@
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Reference" class="form-control" placeholder="Reference" />
+                        <input asp-for="Reference" class="form-control" placeholder="@L["Reference"]" />
                         <label asp-for="Reference"></label>
                     </div>
                     <span asp-validation-for="Reference" class="text-danger small"></span>
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating form-floating-outline">
-                        <input asp-for="Notes" class="form-control" placeholder="Notes" />
+                        <input asp-for="Notes" class="form-control" placeholder="@L["Notes"]" />
                         <label asp-for="Notes"></label>
                     </div>
                     <span asp-validation-for="Notes" class="text-danger small"></span>
@@ -64,12 +64,12 @@
             </div>
 
             <div class="mt-6">
-                <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@(Model.Id == 0 ? "Record payment" : "Save changes")</button>
+                <button type="submit" class="btn btn-primary me-2"><i class="icon-base ri ri-save-line me-1"></i>@(Model.Id == 0 ? L["Record payment"] : L["Save changes"])</button>
                 @if (Model.Id == 0)
                 {
-                    <button type="submit" name="addAnother" value="true" class="btn btn-outline-primary me-2">Record &amp; add another</button>
+                    <button type="submit" name="addAnother" value="true" class="btn btn-outline-primary me-2">@L["Record & add another"]</button>
                 }
-                <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="payments" class="btn btn-outline-secondary">Cancel</a>
+                <a asp-controller="Workshops" asp-action="Details" asp-route-id="@Model.WorkshopId" asp-route-tab="payments" class="btn btn-outline-secondary">@L["Cancel"]</a>
             </div>
         </form>
     </div>

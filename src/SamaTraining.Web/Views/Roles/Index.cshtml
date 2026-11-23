@@ -1,13 +1,13 @@
 @model List<RoleListItem>
 @{
-    ViewData["Title"] = "Roles & Permissions";
+    ViewData["Title"] = L["Roles & Permissions"];
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
     <div>
-        <h4 class="mb-1">Roles &amp; Permissions</h4>
-        <p class="mb-0 text-body-secondary">Each role grants a set of permissions. Users get the permissions of all their roles.</p>
+        <h4 class="mb-1">@L["Roles & Permissions"]</h4>
+        <p class="mb-0 text-body-secondary">@L["Each role grants a set of permissions. Users get the permissions of all their roles."]</p>
     </div>
-    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add role</a>
+    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>@L["Add role"]</a>
 </div>
 
 <div class="row g-6">
@@ -18,16 +18,16 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <span class="stat-icon bg-label-primary"><i class="icon-base ri @(r.Name == Roles.Administrator ? "ri-shield-star-line" : "ri-shield-user-line")"></i></span>
-                        <span class="badge bg-label-secondary">@r.Users user(s)</span>
+                        <span class="badge bg-label-secondary">@L["{0} users", r.Users]</span>
                     </div>
-                    <h5 class="mb-1">@r.Name</h5>
-                    <p class="text-body-secondary small mb-4">@r.Permissions of @Permissions.All.Count permissions</p>
+                    <h5 class="mb-1">@L[r.Name]</h5>
+                    <p class="text-body-secondary small mb-4">@L["{0} of {1} permissions", r.Permissions, Permissions.All.Count]</p>
                     <div class="d-flex gap-2">
-                        <a asp-action="Edit" asp-route-id="@r.Id" class="btn btn-sm btn-outline-primary">Edit permissions</a>
+                        <a asp-action="Edit" asp-route-id="@r.Id" class="btn btn-sm btn-outline-primary">@L["Edit permissions"]</a>
                         @if (r.Name != Roles.Administrator && r.Users == 0)
                         {
-                            <form asp-action="Delete" asp-route-id="@r.Id" method="post" data-confirm="&quot;@r.Name&quot; and its permission settings will be removed." data-confirm-title="Delete this role?" data-confirm-button="Delete role">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            <form asp-action="Delete" asp-route-id="@r.Id" method="post" data-confirm="@L["\"{0}\" and its permission settings will be removed.", r.Name]" data-confirm-title="@L["Delete this role?"]" data-confirm-button="@L["Delete role"]">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">@L["Delete"]</button>
                             </form>
                         }
                     </div>

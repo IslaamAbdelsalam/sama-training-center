@@ -1,45 +1,45 @@
 @model List<ExpenseCategory>
 @{
-    ViewData["Title"] = "Expense Categories";
+    ViewData["Title"] = L["Expense Categories"];
     var uses = (Dictionary<int, int>)ViewBag.Uses;
     var highlight = TempData["Highlight"] as string;
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
     <div>
-        <h4 class="mb-1">Expense Categories</h4>
-        <p class="mb-0 text-body-secondary">Lookup values used when recording workshop expenses.</p>
+        <h4 class="mb-1">@L["Expense Categories"]</h4>
+        <p class="mb-0 text-body-secondary">@L["Lookup values used when recording workshop expenses."]</p>
     </div>
-    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>Add category</a>
+    <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>@L["Add category"]</a>
 </div>
 
 <div class="card">
     <div class="table-responsive">
         <table class="table">
             <thead>
-            <tr><th>Name</th><th>Description</th><th>Used by</th><th>Status</th><th class="text-end">Actions</th></tr>
+            <tr><th>@L["Name"]</th><th>@L["Description"]</th><th>@L["Used by"]</th><th>@L["Status"]</th><th class="text-end">@L["Actions"]</th></tr>
             </thead>
             <tbody class="table-border-bottom-0">
             @if (Model.Count == 0)
             {
-                <tr><td colspan="5" class="text-center text-body-secondary py-6">No categories yet.</td></tr>
+                <tr><td colspan="5" class="text-center text-body-secondary py-6">@L["No categories yet."]</td></tr>
             }
             @foreach (var c in Model)
             {
                 var used = uses.GetValueOrDefault(c.Id);
                 <tr class="@(highlight == c.Id.ToString() ? "row-highlight" : "")">
-                    <td><div class="fw-medium text-heading">@c.Name</div>@if (!string.IsNullOrWhiteSpace(c.NameAr)) { <small class="text-body-secondary" dir="rtl">@c.NameAr</small> } else { <small class="text-warning">Arabic name missing</small> }</td>
+                    <td><div class="fw-medium text-heading">@c.Name</div>@if (!string.IsNullOrWhiteSpace(c.NameAr)) { <small class="text-body-secondary" dir="rtl">@c.NameAr</small> } else { <small class="text-warning">@L["Arabic name missing"]</small> }</td>
                     <td>@c.Description</td>
-                    <td>@used expense(s)</td>
+                    <td>@L["{0} expenses", used]</td>
                     <td>
-                        @if (c.IsActive) { <span class="badge bg-label-success">Active</span> }
-                        else { <span class="badge bg-label-secondary">Inactive</span> }
+                        @if (c.IsActive) { <span class="badge bg-label-success">@L["Active"]</span> }
+                        else { <span class="badge bg-label-secondary">@L["Inactive"]</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="Edit"><i class="icon-base ri ri-edit-box-line"></i></a>
+                        <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-icon btn-text-secondary rounded-pill" title="@L["Edit"]"><i class="icon-base ri ri-edit-box-line"></i></a>
                         @if (used == 0)
                         {
-                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline" data-confirm="&quot;@c.Name&quot; will be removed from the expense types list." data-confirm-title="Delete this category?" data-confirm-button="Delete">
-                                <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="Delete" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
+                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline" data-confirm="@L["\"{0}\" will be removed from the expense types list.", c.Name]" data-confirm-title="@L["Delete this category?"]" data-confirm-button="@L["Delete"]">
+                                <button type="submit" class="btn btn-sm btn-icon btn-text-danger rounded-pill" title="@L["Delete"]" data-no-loading><i class="icon-base ri ri-delete-bin-7-line"></i></button>
                             </form>
                         }
                     </td>

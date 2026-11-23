@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SamaTraining.Web.Data;
 using SamaTraining.Web.Models;
 using SamaTraining.Web.Security;
+using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Controllers;
 
@@ -74,23 +75,23 @@ public class UsersController : AppController
         var isNew = string.IsNullOrEmpty(model.Id);
         if (isNew && string.IsNullOrWhiteSpace(model.Password))
         {
-            ModelState.AddModelError(nameof(model.Password), "Set an initial password. The user will be asked to change it at first login.");
+            ModelState.AddModelError(nameof(model.Password), UiText.Get("Set an initial password. The user will be asked to change it at first login."));
         }
 
         var validRoles = await _roles.Roles.Select(r => r.Name!).ToListAsync();
         model.SelectedRoles = model.SelectedRoles.Where(validRoles.Contains).Distinct().ToList();
         if (model.SelectedRoles.Count == 0)
         {
-            ModelState.AddModelError(nameof(model.SelectedRoles), "Assign at least one role.");
+            ModelState.AddModelError(nameof(model.SelectedRoles), UiText.Get("Assign at least one role."));
         }
 
         var currentUserId = _users.GetUserId(User);
         if (!isNew && model.Id == currentUserId)
         {
             if (!model.IsActive)
-                ModelState.AddModelError(nameof(model.IsActive), "You cannot deactivate your own account.");
+                ModelState.AddModelError(nameof(model.IsActive), UiText.Get("You cannot deactivate your own account."));
             if (!model.SelectedRoles.Contains(Roles.Administrator) && (await _users.GetRolesAsync((await _users.FindByIdAsync(model.Id!))!)).Contains(Roles.Administrator))
-                ModelState.AddModelError(nameof(model.SelectedRoles), "You cannot remove the Administrator role from your own account.");
+                ModelState.AddModelError(nameof(model.SelectedRoles), UiText.Get("You cannot remove the Administrator role from your own account."));
         }
 
         if (!ModelState.IsValid)
@@ -148,7 +149,7 @@ public class UsersController : AppController
         if (toRemove.Count > 0 || toAdd.Count > 0) await _users.UpdateSecurityStampAsync(user);
 
         Success(isNew ? "User added" : "User updated",
-            isNew ? $"{user.FullName} can sign in as \"{user.UserName}\" and will set a new password at first login." : $"{user.FullName}'s account is saved.");
+            isNew ? UiText.Format("{0} can sign in as \"{1}\" and will set a new password at first login.", user.FullName, user.UserName) : UiText.Format("{0}'s account is saved.", user.FullName));
         Highlight(user.Id);
         return RedirectToAction(nameof(Index));
     }
@@ -181,7 +182,7 @@ public class UsersController : AppController
         await _users.SetLockoutEndDateAsync(u, null);
         await _users.ResetAccessFailedCountAsync(u);
 
-        Success("Password reset", $"Share the temporary password with {u.UserName} securely. They must change it at next login.");
+        Success("Password reset", UiText.Format("Share the temporary password with {0} securely. They must change it at next login.", u.UserName));
         Highlight(u.Id);
         return RedirectToAction(nameof(Index));
     }
@@ -193,7 +194,7 @@ public class UsersController : AppController
         if (u == null) return NotFound();
         await _users.SetLockoutEndDateAsync(u, null);
         await _users.ResetAccessFailedCountAsync(u);
-        Success("Account unlocked", $"{u.UserName} can sign in again.");
+        Success("Account unlocked", UiText.Format("{0} can sign in again.", u.UserName));
         Highlight(u.Id);
         return RedirectToAction(nameof(Index));
     }
@@ -273,7 +274,7 @@ public class RolesController : AppController
         var existing = await _roles.FindByNameAsync(model.Name.Trim());
         if (existing != null && existing.Id != model.Id)
         {
-            ModelState.AddModelError(nameof(model.Name), "A role with this name already exists.");
+            ModelState.AddModelError(nameof(model.Name), UiText.Get("A role with this name already exists."));
         }
 
         if (!ModelState.IsValid) return View("Form", model);
@@ -311,7 +312,7 @@ public class RolesController : AppController
             await _users.UpdateSecurityStampAsync(u);
         }
 
-        Success(string.IsNullOrEmpty(model.Id) ? "Role added" : "Role updated", $"Permissions for \"{role.Name}\" apply to its users within a minute.");
+        Success(string.IsNullOrEmpty(model.Id) ? "Role added" : "Role updated", UiText.Format("Permissions for \"{0}\" apply to its users within a minute.", role.Name));
         return RedirectToAction(nameof(Index));
     }
 
@@ -329,12 +330,12 @@ public class RolesController : AppController
 
         if ((await _users.GetUsersInRoleAsync(r.Name!)).Count > 0)
         {
-            Error("Role can't be deleted", $"\"{r.Name}\" still has users. Move them to another role first.");
+            Error("Role can't be deleted", UiText.Format("\"{0}\" still has users. Move them to another role first.", r.Name));
             return RedirectToAction(nameof(Index));
         }
 
         await _roles.DeleteAsync(r);
-        Success("Role deleted", $"\"{r.Name}\" was removed.");
+        Success("Role deleted", UiText.Format("\"{0}\" was removed.", r.Name));
         return RedirectToAction(nameof(Index));
     }
 }

@@ -1,12 +1,12 @@
-﻿@model ErrorViewModel
+@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = L["Error"];
     Layout = "_AuthLayout";
 }
-<h4 class="mb-1">Something went wrong</h4>
-<p class="mb-5">An error occurred while processing your request. Please try again, or contact the system administrator if it keeps happening.</p>
+<h4 class="mb-1">@L["Something went wrong"]</h4>
+<p class="mb-5">@L["An error occurred while processing your request. Please try again, or contact the system administrator if it keeps happening."]</p>
 @if (Model.ShowRequestId)
 {
-    <p class="small text-body-secondary">Reference: <code>@Model.RequestId</code></p>
+    <p class="small text-body-secondary">@L["Reference:"] <code>@Model.RequestId</code></p>
 }
-<a href="/" class="btn btn-primary w-100">Back to the system</a>
+<a href="/" class="btn btn-primary w-100">@L["Back to the system"]</a>

@@ -1,10 +1,10 @@
 @{
-    ViewData["Title"] = "Access denied";
+    ViewData["Title"] = L["Access denied"];
     Layout = "_AuthLayout";
 }
 <div class="text-center">
     <i class="icon-base ri ri-lock-2-line text-warning" style="font-size: 3rem"></i>
-    <h4 class="mt-3 mb-1">You don't have access to this page</h4>
-    <p class="mb-5">Your role does not include this permission. Ask your system administrator if you need it.</p>
-    <a href="/" class="btn btn-primary w-100">Back to the system</a>
+    <h4 class="mt-3 mb-1">@L["You don't have access to this page"]</h4>
+    <p class="mb-5">@L["Your role does not include this permission. Ask your system administrator if you need it."]</p>
+    <a href="/" class="btn btn-primary w-100">@L["Back to the system"]</a>
 </div>

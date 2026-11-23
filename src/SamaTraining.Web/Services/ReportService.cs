@@ -42,7 +42,7 @@ public class ReportService
         var workshops = await query
             .Select(w => new
             {
-                w.Id, w.Name, w.StartDateTime, w.EndDateTime, w.Fee, w.Country, w.CurrencyCode, w.Type, w.Status, w.Capacity,
+                w.Id, w.Name, w.NameAr, w.StartDateTime, w.EndDateTime, w.Fee, w.Country, w.CurrencyCode, w.Type, w.Status, w.Capacity,
                 Registrations = w.Registrations.Count(r => !r.IsCancelled)
             })
             .ToListAsync();
@@ -71,6 +71,7 @@ public class ReportService
             {
                 Id = w.Id,
                 Name = w.Name,
+                NameAr = w.NameAr,
                 StartDateTime = w.StartDateTime,
                 Country = w.Country,
                 CountryName = _settings.CountryName(w.Country),

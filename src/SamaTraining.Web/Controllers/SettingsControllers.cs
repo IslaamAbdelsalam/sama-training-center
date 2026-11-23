@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SamaTraining.Web.Data;
 using SamaTraining.Web.Models;
 using SamaTraining.Web.Security;
+using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Controllers;
 
@@ -44,7 +45,7 @@ public class ExpenseCategoriesController : AppController
         model.Name = model.Name?.Trim() ?? string.Empty;
         if (await _db.ExpenseCategories.AnyAsync(c => c.Name == model.Name && c.Id != model.Id))
         {
-            ModelState.AddModelError(nameof(model.Name), "A category with this name already exists.");
+            ModelState.AddModelError(nameof(model.Name), UiText.Get("A category with this name already exists."));
         }
 
         if (!ModelState.IsValid)
@@ -71,7 +72,7 @@ public class ExpenseCategoriesController : AppController
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
 
-        Success(model.Id == 0 ? "Category added" : "Category updated", $"\"{entity.Name}\" is saved.");
+        Success(model.Id == 0 ? "Category added" : "Category updated", UiText.Format("\"{0}\" is saved.", entity.Name));
         Highlight(entity.Id);
         return RedirectToAction(nameof(Index));
     }
@@ -85,13 +86,13 @@ public class ExpenseCategoriesController : AppController
         // US-01: a category used by any expense can't be deleted.
         if (await _db.WorkshopExpenses.AnyAsync(e => e.ExpenseCategoryId == id))
         {
-            Error("Category can't be deleted", $"\"{c.Name}\" is used by existing expenses. Switch it to inactive instead.");
+            Error("Category can't be deleted", UiText.Format("\"{0}\" is used by existing expenses. Switch it to inactive instead.", c.Name));
             return fromEdit ? RedirectToAction(nameof(Edit), new { id }) : RedirectToAction(nameof(Index));
         }
 
         _db.ExpenseCategories.Remove(c);
         await _db.SaveChangesAsync();
-        Success("Category deleted", $"\"{c.Name}\" was removed.");
+        Success("Category deleted", UiText.Format("\"{0}\" was removed.", c.Name));
         return RedirectToAction(nameof(Index));
     }
 }
@@ -135,7 +136,7 @@ public class HallsController : AppController
         model.Name = model.Name?.Trim() ?? string.Empty;
         if (await _db.Halls.AnyAsync(h => h.Name == model.Name && h.Id != model.Id))
         {
-            ModelState.AddModelError(nameof(model.Name), "A hall with this name already exists.");
+            ModelState.AddModelError(nameof(model.Name), UiText.Get("A hall with this name already exists."));
         }
 
         if (!ModelState.IsValid)
@@ -164,7 +165,7 @@ public class HallsController : AppController
         entity.IsActive = model.IsActive;
         await _db.SaveChangesAsync();
 
-        Success(model.Id == 0 ? "Hall added" : "Hall updated", $"\"{entity.Name}\" is saved.");
+        Success(model.Id == 0 ? "Hall added" : "Hall updated", UiText.Format("\"{0}\" is saved.", entity.Name));
         Highlight(entity.Id);
         return RedirectToAction(nameof(Index));
     }
@@ -178,13 +179,13 @@ public class HallsController : AppController
         // US-01: a hall or location used by any workshop can't be deleted.
         if (await _db.Workshops.AnyAsync(w => w.HallId == id))
         {
-            Error("Hall can't be deleted", $"\"{h.Name}\" is used by existing workshops. Switch it to inactive instead.");
+            Error("Hall can't be deleted", UiText.Format("\"{0}\" is used by existing workshops. Switch it to inactive instead.", h.Name));
             return fromEdit ? RedirectToAction(nameof(Edit), new { id }) : RedirectToAction(nameof(Index));
         }
 
         _db.Halls.Remove(h);
         await _db.SaveChangesAsync();
-        Success("Hall deleted", $"\"{h.Name}\" was removed.");
+        Success("Hall deleted", UiText.Format("\"{0}\" was removed.", h.Name));
         return RedirectToAction(nameof(Index));
     }
 }
