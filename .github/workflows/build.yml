@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload generated migration
         if: hashFiles('src/SamaTraining.Web/Data/Migrations/*.cs') != '' && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: migrations
           path: src/SamaTraining.Web/Data/Migrations/
@@ -71,7 +71,7 @@ jobs:
         run: dotnet publish src/SamaTraining.Web/SamaTraining.Web.csproj -c Release -o publish --no-restore
 
       - name: Upload deployable package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sama-training-web
           path: publish/
