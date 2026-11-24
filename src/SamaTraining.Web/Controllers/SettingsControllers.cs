@@ -15,9 +15,14 @@ public class ExpenseCategoriesController : AppController
 
     public ExpenseCategoriesController(ApplicationDbContext db) => _db = db;
 
-    public async Task<IActionResult> Index(string? cursor)
+    public async Task<IActionResult> Index(string? q, string? status, string? cursor, int? size, int? at)
     {
+        q = q?.Trim(); if (q?.Length > 100) q = q[..100];
         var query = _db.ExpenseCategories.AsQueryable();
+        if (!string.IsNullOrEmpty(q))
+            query = query.Where(c => c.Name.Contains(q) || (c.NameAr != null && c.NameAr.Contains(q)) || (c.Description != null && c.Description.Contains(q)));
+        if (status == "active") query = query.Where(c => c.IsActive);
+        else if (status == "inactive") query = query.Where(c => !c.IsActive);
         var total = await query.CountAsync();
         var cur = Paging.Decode(cursor, 2);
         if (cur != null && Paging.TryInt(cur[1], out var afterId))
@@ -28,12 +33,13 @@ public class ExpenseCategoriesController : AppController
         else cur = null;
         var (items, more) = Paging.Trim(await query
             .OrderBy(c => c.Name).ThenBy(c => c.Id)
-            .Take(Paging.DetailSize + 1)
+            .Take(Paging.Size(size) + 1)
             .Select(c => new { Category = c, Uses = c.Expenses.Count })
-            .ToListAsync(), Paging.DetailSize);
+            .ToListAsync(), Paging.Size(size));
+        ViewBag.Filter = (q, status, size);
         ViewBag.Pager = new PageLinks
         {
-            IsPaged = cur != null, Shown = items.Count, Total = total,
+            IsPaged = cur != null, Shown = items.Count, Total = total, Size = Paging.Size(size), At = Paging.At(at, cur != null),
             Next = more ? Paging.Encode(items[^1].Category.Name, items[^1].Category.Id) : null
         };
 
@@ -120,9 +126,15 @@ public class HallsController : AppController
 
     public HallsController(ApplicationDbContext db) => _db = db;
 
-    public async Task<IActionResult> Index(string? cursor)
+    public async Task<IActionResult> Index(string? q, string? status, string? cursor, int? size, int? at)
     {
+        q = q?.Trim(); if (q?.Length > 100) q = q[..100];
         var query = _db.Halls.AsQueryable();
+        if (!string.IsNullOrEmpty(q))
+            query = query.Where(h => h.Name.Contains(q) || (h.NameAr != null && h.NameAr.Contains(q))
+                || (h.Location != null && h.Location.Contains(q)) || (h.LocationAr != null && h.LocationAr.Contains(q)));
+        if (status == "active") query = query.Where(h => h.IsActive);
+        else if (status == "inactive") query = query.Where(h => !h.IsActive);
         var total = await query.CountAsync();
         var cur = Paging.Decode(cursor, 2);
         if (cur != null && Paging.TryInt(cur[1], out var afterId))
@@ -133,12 +145,13 @@ public class HallsController : AppController
         else cur = null;
         var (items, more) = Paging.Trim(await query
             .OrderBy(h => h.Name).ThenBy(h => h.Id)
-            .Take(Paging.DetailSize + 1)
+            .Take(Paging.Size(size) + 1)
             .Select(h => new { Hall = h, Uses = h.Workshops.Count })
-            .ToListAsync(), Paging.DetailSize);
+            .ToListAsync(), Paging.Size(size));
+        ViewBag.Filter = (q, status, size);
         ViewBag.Pager = new PageLinks
         {
-            IsPaged = cur != null, Shown = items.Count, Total = total,
+            IsPaged = cur != null, Shown = items.Count, Total = total, Size = Paging.Size(size), At = Paging.At(at, cur != null),
             Next = more ? Paging.Encode(items[^1].Hall.Name, items[^1].Hall.Id) : null
         };
 

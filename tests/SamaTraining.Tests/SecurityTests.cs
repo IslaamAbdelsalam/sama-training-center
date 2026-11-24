@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using SamaTraining.Web.Data;
+using SamaTraining.Web.Security;
 
 namespace SamaTraining.Tests;
 
@@ -120,8 +121,16 @@ public class SecurityTests : IClassFixture<TestAppFactory>
         Assert.Equal(5, Regex.Matches(second, "Paged Workshop \\d\\d").Count);
         Assert.Contains("Paged Workshop 00", second);
         Assert.DoesNotContain("Paged Workshop 29", second);
-        Assert.DoesNotContain("Next page", second); // last page
+        Assert.DoesNotMatch("href=\"[^\"]*cursor=", second); // last page: Next is disabled
         Assert.Contains("First page", second);
+        Assert.Contains("26–30 of 30", second);
+
+        // Rows per page: only 10 / 25 / 50 / 100 are accepted.
+        var ten = await client.GetStringAsync("/Workshops?Search=Paged+Workshop&Size=10");
+        Assert.Equal(10, Regex.Matches(ten, "Paged Workshop \\d\\d").Count);
+        Assert.Contains("1–10 of 30", ten);
+        var huge = await client.GetStringAsync("/Workshops?Search=Paged+Workshop&Size=100000");
+        Assert.Equal(25, Regex.Matches(huge, "Paged Workshop \\d\\d").Count); // not allowed → default
 
         // A damaged or forged cursor just starts again at the first page.
         var forged = await client.GetStringAsync("/Workshops?Search=Paged+Workshop&Cursor=not-a-cursor%27--");
@@ -208,3 +217,57 @@ public class RateLimitTests : IClassFixture<RateLimitFactory>
         Assert.Contains("Too many requests", await last.Content.ReadAsStringAsync());
     }
 }
+
+public class ListFilterTests : IClassFixture<TestAppFactory>
+{
+    private readonly TestAppFactory _app;
+
+    public ListFilterTests(TestAppFactory app) => _app = app;
+
+    [Fact]
+    public async Task Users_Halls_Categories_AndWorkshopTabs_HaveFiltersAndPagers()
+    {
+        var client = await _app.SignedInAdminAsync();
+        await _app.SignedInUserAsync("filter.finance", Roles.Finance);
+
+        var users = await client.GetStringAsync("/Users?q=filter.fin");
+        Assert.Contains("filter.finance", users);
+        Assert.DoesNotContain(">admin<", users);
+        Assert.Contains("Rows per page", users);
+        Assert.Contains("No users match these filters.", await client.GetStringAsync("/Users?q=zzz-nobody"));
+        Assert.Contains("filter.finance", await client.GetStringAsync("/Users?role=" + Uri.EscapeDataString(Roles.Finance)));
+
+        var halls = await client.GetStringAsync("/Halls?q=Main");
+        Assert.Contains("Main Hall", halls);
+        Assert.DoesNotContain("Training Room 1", halls);
+        Assert.Contains("No halls match these filters.", await client.GetStringAsync("/Halls?status=inactive&q=zzz"));
+
+        var cats = await client.GetStringAsync("/ExpenseCategories?q=Catering");
+        Assert.Contains("Catering", cats);
+        Assert.DoesNotContain("Hall Rental", cats);
+
+        // Workshop page: students tab filter by name and by status.
+        var id = await _app.WithDbAsync(async db =>
+        {
+            var w = new Workshop { Name = "Filter Tabs", Country = "SD", CurrencyCode = "SDG", Type = WorkshopType.Online, Capacity = 50,
+                StartDateTime = DateTime.Today.AddDays(30), EndDateTime = DateTime.Today.AddDays(30).AddHours(2) };
+            db.Workshops.Add(w);
+            await db.SaveChangesAsync();
+            for (var i = 0; i < 12; i++)
+                db.Registrations.Add(new Registration { WorkshopId = w.Id, FullName = $"Student {i:00}", Email = $"s{i}@x.example", Phone = $"2499100000{i:00}",
+                    RegisteredAt = DateTime.UtcNow.AddMinutes(-i), IsCancelled = i == 11 });
+            await db.SaveChangesAsync();
+            return w.Id;
+        });
+        var tab = await client.GetStringAsync($"/Workshops/Details/{id}?tab=registrations&rq=Student+03");
+        Assert.Contains("Student 03", tab);
+        Assert.DoesNotContain("Student 04", tab);
+        var cancelled = await client.GetStringAsync($"/Workshops/Details/{id}?tab=registrations&rstatus=cancelled");
+        Assert.Contains("Student 11", cancelled);
+        Assert.DoesNotContain("Student 01", cancelled);
+        var paged = await client.GetStringAsync($"/Workshops/Details/{id}?tab=registrations&rsize=10");
+        Assert.Contains("1–10 of 12", paged);
+        Assert.Matches("href=\"[^\"]*rcur=", paged);
+    }
+}
+

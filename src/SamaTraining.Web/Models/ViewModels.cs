@@ -170,6 +170,10 @@ public class WorkshopFilterModel
     [StringLength(200)]
     public string? Cursor { get; set; }
 
+    /// <summary>Rows per page (10 / 25 / 50 / 100) and rows before this page.</summary>
+    public int? Size { get; set; }
+    public int? At { get; set; }
+
     [DataType(DataType.Date)]
     public DateTime? From { get; set; }
 
@@ -266,8 +270,43 @@ public class WorkshopFormModel
     public IEnumerable<SelectListItem> Halls { get; set; } = Enumerable.Empty<SelectListItem>();
 }
 
+/// <summary>Filters, page sizes and cursors for the three lists on the workshop page (r = students, e = expenses, c = payments).</summary>
+public class WorkshopListsQuery
+{
+    [StringLength(100)] public string? RQ { get; set; }
+    [StringLength(20)] public string? RStatus { get; set; }   // active | cancelled
+    [StringLength(20)] public string? RPay { get; set; }      // paid | unpaid
+    [StringLength(200)] public string? RCur { get; set; }
+    public int? RSize { get; set; }
+    public int? RAt { get; set; }
+
+    [StringLength(100)] public string? EQ { get; set; }
+    public int? ECat { get; set; }
+    [StringLength(200)] public string? ECur { get; set; }
+    public int? ESize { get; set; }
+    public int? EAt { get; set; }
+
+    [StringLength(100)] public string? CQ { get; set; }
+    public PaymentMethod? CMethod { get; set; }
+    [StringLength(200)] public string? CCur { get; set; }
+    public int? CSize { get; set; }
+    public int? CAt { get; set; }
+
+    public static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : (s.Trim().Length > 100 ? s.Trim()[..100] : s.Trim());
+}
+
 public class WorkshopDetailsViewModel
 {
+    public WorkshopListsQuery Lists { get; set; } = new();
+
+    /// <summary>Lists after filtering (for the pagers); the *TotalCount values are before filtering.</summary>
+    public int RegistrationFilteredTotal { get; set; }
+    public int ExpenseFilteredTotal { get; set; }
+    public int CollectionFilteredTotal { get; set; }
+
+    /// <summary>Expense types used by this workshop (expense filter).</summary>
+    public List<(int Id, string Name)> ExpenseCategoryOptions { get; set; } = new();
+
     public Workshop Workshop { get; set; } = null!;
     public string? RegistrationUrl { get; set; }
     public int RegistrationCount { get; set; }

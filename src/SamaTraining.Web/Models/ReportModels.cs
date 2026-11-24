@@ -20,6 +20,9 @@ public class ReportFilter
     /// <summary>Opaque position of the next page of the table (cursor pagination).</summary>
     [StringLength(200)]
     public string? Cursor { get; set; }
+
+    public int? Size { get; set; }
+    public int? At { get; set; }
 }
 
 /// <summary>One currency's totals. Money in different currencies is never added together.</summary>

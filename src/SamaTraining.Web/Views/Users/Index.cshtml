@@ -1,6 +1,8 @@
 @model List<UserListItem>
 @{
     ViewData["Title"] = L["Users"];
+    var (fq, frole, fstatus, fsize) = ((string?, string?, string?, int?))ViewBag.Filter;
+    var allRoles = (List<string>)ViewBag.AllRoles;
     var highlight = TempData["Highlight"] as string;
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
@@ -11,6 +13,41 @@
     <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-user-add-line me-1"></i>@L["Add user"]</a>
 </div>
 
+<div class="card mb-6">
+    <div class="card-body">
+        <form method="get" class="row g-4 align-items-end">
+            @if (fsize.HasValue) { <input type="hidden" name="size" value="@fsize" /> }
+            <div class="col-md-5">
+                <label class="form-label" for="q">@L["Search"]</label>
+                <input type="text" id="q" name="q" value="@fq" maxlength="100" class="form-control" placeholder="@L["Name, username or email"]" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="role">@L["Role"]</label>
+                <select id="role" name="role" class="form-select">
+                    <option value="">@L["All"]</option>
+                    @foreach (var r in allRoles)
+                    {
+                        <!option value="@r" selected="@(frole == r)">@L[r]</!option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="status">@L["Status"]</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">@L["All"]</option>
+                    <!option value="active" selected="@(fstatus == "active")">@L["Active"]</!option>
+                    <!option value="inactive" selected="@(fstatus == "inactive")">@L["Inactive"]</!option>
+                    <!option value="locked" selected="@(fstatus == "locked")">@L["Locked"]</!option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                <a asp-action="Index" class="btn btn-outline-secondary" title="@L["Reset"]"><i class="icon-base ri ri-refresh-line"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="table-responsive">
         <table class="table">
@@ -18,6 +55,10 @@
             <tr><th>@L["User"]</th><th>@L["Username"]</th><th>@L["Roles"]</th><th>@L["Status"]</th><th class="text-end">@L["Actions"]</th></tr>
             </thead>
             <tbody class="table-border-bottom-0">
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center text-body-secondary py-6">@L["No users match these filters."]</td></tr>
+            }
             @foreach (var u in Model)
             {
                 var initials = string.Concat((string.IsNullOrWhiteSpace(u.FullName) ? u.UserName : u.FullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpperInvariant(p[0])));

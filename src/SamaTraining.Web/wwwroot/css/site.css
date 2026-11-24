@@ -327,3 +327,4 @@ tr.row-link:hover .row-link-main { text-decoration: underline; }
 .hp-field { position: absolute !important; left: -10000px !important; top: auto; width: 1px; height: 1px; overflow: hidden; }
 .pager-next { transform: scaleX(-1); }
 [dir="rtl"] .pager-next { transform: none; }
+[dir="rtl"] .pager-prev { transform: scaleX(-1); }

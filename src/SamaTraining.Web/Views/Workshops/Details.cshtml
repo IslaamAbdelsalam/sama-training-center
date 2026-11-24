@@ -186,7 +186,7 @@
                 @if (canSeeStudents)
                 {
                     <div class="tab-pane fade @PaneCss("registrations")" id="tab-registrations" role="tabpanel">
-                        @if (Model.Registrations.Count == 0)
+                        @if (Model.RegistrationListTotal == 0)
                         {
                             <div class="empty-state">
                                 <span class="stat-icon bg-label-primary"><i class="icon-base ri ri-user-add-line"></i></span>
@@ -211,10 +211,45 @@
                                 <span class="text-body-secondary small">@L["{0} registered", Model.RegistrationCount]@(Model.CancelledCount > 0 ? " · " + L["{0} cancelled", Model.CancelledCount] : "")</span>
                                 <a asp-action="ExportRegistrations" asp-route-id="@w.Id" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-download-2-line me-1"></i>@L["Export to Excel (CSV)"]</a>
                             </div>
+                            <form asp-action="Details" asp-route-id="@w.Id" method="get" class="row g-3 align-items-end px-5 pb-3 list-filter">
+                                <input type="hidden" name="tab" value="registrations" />
+                                @foreach (var kv in Context.Request.Query.Where(k => !new[] { "rq", "rstatus", "rpay", "rcur", "rat", "tab" }.Contains(k.Key.ToLowerInvariant())))
+                                {
+                                    <input type="hidden" name="@kv.Key" value="@kv.Value" />
+                                }
+                                <div class="col-md-5">
+                                    <input type="text" name="rq" value="@Model.Lists.RQ" maxlength="100" class="form-control form-control-sm" placeholder="@L["Name, email, phone or organization"]" aria-label="@L["Search"]" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <select name="rstatus" class="form-select form-select-sm" aria-label="@L["Status"]">
+                                        <option value="">@L["All statuses"]</option>
+                                        <!option value="active" selected="@(Model.Lists.RStatus == "active")">@L["Active"]</!option>
+                                        <!option value="cancelled" selected="@(Model.Lists.RStatus == "cancelled")">@L["Cancelled"]</!option>
+                                    </select>
+                                </div>
+                                @if (showPayments)
+                                {
+                                    <div class="col-6 col-md-2">
+                                        <select name="rpay" class="form-select form-select-sm" aria-label="@L["Payment"]">
+                                            <option value="">@L["Any payment"]</option>
+                                            <!option value="paid" selected="@(Model.Lists.RPay == "paid")">@L["Has a payment"]</!option>
+                                            <!option value="unpaid" selected="@(Model.Lists.RPay == "unpaid")">@L["No payment yet"]</!option>
+                                        </select>
+                                    </div>
+                                }
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                                    <a asp-action="Details" asp-route-id="@w.Id" asp-route-tab="registrations" class="btn btn-sm btn-outline-secondary" title="@L["Reset"]"><i class="icon-base ri ri-refresh-line"></i></a>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead><tr><th>@L["Participant"]</th><th>@L["Phone"]</th><th>@L["Organization"]</th><th>@L["Registered"]</th>@if (showPayments) { <th>@L["Payment"]</th> }@if (canCancel) { <th></th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
+                                    @if (Model.Registrations.Count == 0)
+                                    {
+                                        <tr><td colspan="7" class="text-center text-body-secondary py-6">@L["No registrations match these filters."]</td></tr>
+                                    }
                                     @foreach (var r in Model.Registrations)
                                     {
                                         var hasPaid = Model.PaidRegistrationIds.Contains(r.Id);
@@ -317,7 +352,7 @@
                                 <span class="badge bg-label-secondary"><i class="icon-base ri ri-lock-line me-1"></i>@L["Finalised — workshop completed"]</span>
                             }
                         </div>
-                        @if (Model.Expenses.Count == 0)
+                        @if (Model.ExpenseTotalCount == 0)
                         {
                             <div class="empty-state">
                                 <span class="stat-icon bg-label-secondary"><i class="icon-base ri ri-wallet-3-line"></i></span>
@@ -327,10 +362,37 @@
                         }
                         else
                         {
+                            <form asp-action="Details" asp-route-id="@w.Id" method="get" class="row g-3 align-items-end px-5 pb-3 list-filter">
+                                <input type="hidden" name="tab" value="expenses" />
+                                @foreach (var kv in Context.Request.Query.Where(k => !new[] { "eq", "ecat", "ecur", "eat", "tab" }.Contains(k.Key.ToLowerInvariant())))
+                                {
+                                    <input type="hidden" name="@kv.Key" value="@kv.Value" />
+                                }
+                                <div class="col-md-5">
+                                    <input type="text" name="eq" value="@Model.Lists.EQ" maxlength="100" class="form-control form-control-sm" placeholder="@L["Search in descriptions"]" aria-label="@L["Search"]" />
+                                </div>
+                                <div class="col-md-4">
+                                    <select name="ecat" class="form-select form-select-sm" aria-label="@L["Expense type"]">
+                                        <option value="">@L["All expense types"]</option>
+                                        @foreach (var c in Model.ExpenseCategoryOptions)
+                                        {
+                                            <!option value="@c.Id" selected="@(Model.Lists.ECat == c.Id)">@c.Name</!option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                                    <a asp-action="Details" asp-route-id="@w.Id" asp-route-tab="expenses" class="btn btn-sm btn-outline-secondary" title="@L["Reset"]"><i class="icon-base ri ri-refresh-line"></i></a>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead><tr><th>@L["Expense"]</th><th>@L["Date"]</th><th class="text-end">@L["Amount ({0})", currency]</th><th>@L["Entered by"]</th>@if (canManage) { <th></th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
+                                    @if (Model.Expenses.Count == 0)
+                                    {
+                                        <tr><td colspan="5" class="text-center text-body-secondary py-6">@L["No expenses match these filters."]</td></tr>
+                                    }
                                     @foreach (var e in Model.Expenses)
                                     {
                                         <tr class="@(highlight == e.Id.ToString() ? "row-highlight" : "")">
@@ -383,7 +445,7 @@
                                 <span class="badge bg-label-secondary"><i class="icon-base ri ri-lock-line me-1"></i>@L["Finalised — workshop completed"]</span>
                             }
                         </div>
-                        @if (Model.Collections.Count == 0)
+                        @if (Model.CollectionTotalCount == 0)
                         {
                             <div class="empty-state">
                                 <span class="stat-icon bg-label-success"><i class="icon-base ri ri-hand-coin-line"></i></span>
@@ -394,10 +456,37 @@
                         else
                         {
                             var canEditCollections = User.Can(Permissions.CollectionsManage) && Model.CanCollect;
+                            <form asp-action="Details" asp-route-id="@w.Id" method="get" class="row g-3 align-items-end px-5 pb-3 list-filter">
+                                <input type="hidden" name="tab" value="payments" />
+                                @foreach (var kv in Context.Request.Query.Where(k => !new[] { "cq", "cmethod", "ccur", "cat", "tab" }.Contains(k.Key.ToLowerInvariant())))
+                                {
+                                    <input type="hidden" name="@kv.Key" value="@kv.Value" />
+                                }
+                                <div class="col-md-5">
+                                    <input type="text" name="cq" value="@Model.Lists.CQ" maxlength="100" class="form-control form-control-sm" placeholder="@L["Participant, phone or reference"]" aria-label="@L["Search"]" />
+                                </div>
+                                <div class="col-md-4">
+                                    <select name="cmethod" class="form-select form-select-sm" aria-label="@L["Method"]">
+                                        <option value="">@L["All methods"]</option>
+                                        @foreach (var m in Enum.GetValues<PaymentMethod>())
+                                        {
+                                            <!option value="@m" selected="@(Model.Lists.CMethod == m)">@DisplayFormat.Label(m)</!option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                                    <a asp-action="Details" asp-route-id="@w.Id" asp-route-tab="payments" class="btn btn-sm btn-outline-secondary" title="@L["Reset"]"><i class="icon-base ri ri-refresh-line"></i></a>
+                                </div>
+                            </form>
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead><tr><th>@L["Participant"]</th><th>@L["Date"]</th><th>@L["Method"]</th><th class="text-end">@L["Amount ({0})", currency]</th><th>@L["Recorded by"]</th>@if (canEditCollections) { <th></th> }</tr></thead>
                                     <tbody class="table-border-bottom-0">
+                                    @if (Model.Collections.Count == 0)
+                                    {
+                                        <tr><td colspan="6" class="text-center text-body-secondary py-6">@L["No payments match these filters."]</td></tr>
+                                    }
                                     @foreach (var c in Model.Collections)
                                     {
                                         <tr class="@(highlight == "c" + c.Id ? "row-highlight" : "")">

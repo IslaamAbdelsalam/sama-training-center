@@ -15,17 +15,37 @@ public class UsersController : AppController
 {
     private readonly UserManager<ApplicationUser> _users;
     private readonly RoleManager<IdentityRole> _roles;
+    private readonly ApplicationDbContext _db;
 
-    public UsersController(UserManager<ApplicationUser> users, RoleManager<IdentityRole> roles)
+    public UsersController(UserManager<ApplicationUser> users, RoleManager<IdentityRole> roles, ApplicationDbContext db)
     {
         _users = users;
         _roles = roles;
+        _db = db;
     }
 
-    public async Task<IActionResult> Index(string? cursor)
+    /// <summary>Users list: search, role and status filters; cursor pages of 10/25/50/100.</summary>
+    public async Task<IActionResult> Index(string? q, string? role, string? status, string? cursor, int? size, int? at)
     {
-        // Cursor pagination by (full name, id).
+        q = q?.Trim(); if (q?.Length > 100) q = q[..100];
+        if (role?.Length > 256) role = null;
         var query = _users.Users;
+        if (!string.IsNullOrEmpty(q))
+            query = query.Where(u => u.FullName.Contains(q) || u.UserName!.Contains(q) || (u.Email != null && u.Email.Contains(q)));
+        if (!string.IsNullOrEmpty(role))
+        {
+            var roleId = await _roles.Roles.Where(r => r.Name == role).Select(r => r.Id).FirstOrDefaultAsync() ?? "-";
+            query = query.Where(u => _db.UserRoles.Any(ur => ur.UserId == u.Id && ur.RoleId == roleId));
+        }
+        var now = DateTimeOffset.UtcNow;
+        query = status switch
+        {
+            "active" => query.Where(u => u.IsActive),
+            "inactive" => query.Where(u => !u.IsActive),
+            "locked" => query.Where(u => u.LockoutEnd != null && u.LockoutEnd > now),
+            _ => query
+        };
+
         var total = await query.CountAsync();
         var cur = Paging.Decode(cursor, 2);
         if (cur != null)
@@ -33,12 +53,15 @@ public class UsersController : AppController
             var (afterName, afterId) = (cur[0], cur[1]);
             query = query.Where(u => string.Compare(u.FullName, afterName) > 0 || (u.FullName == afterName && string.Compare(u.Id, afterId) > 0));
         }
-        var (users, more) = Paging.Trim(await query.OrderBy(u => u.FullName).ThenBy(u => u.Id).Take(Paging.DefaultSize + 1).ToListAsync(), Paging.DefaultSize);
+        var pageSize = Paging.Size(size);
+        var (users, more) = Paging.Trim(await query.OrderBy(u => u.FullName).ThenBy(u => u.Id).Take(pageSize + 1).ToListAsync(), pageSize);
         ViewBag.Pager = new PageLinks
         {
-            IsPaged = cur != null, Shown = users.Count, Total = total,
+            IsPaged = cur != null, Shown = users.Count, Total = total, Size = pageSize, At = Paging.At(at, cur != null),
             Next = more ? Paging.Encode(users[^1].FullName, users[^1].Id) : null
         };
+        ViewBag.Filter = (q, role, status, size);
+        ViewBag.AllRoles = await _roles.Roles.OrderBy(r => r.Name).Select(r => r.Name!).ToListAsync();
         var list = new List<UserListItem>();
         foreach (var u in users)
         {
@@ -226,10 +249,13 @@ public class RolesController : AppController
     private readonly RoleManager<IdentityRole> _roles;
     private readonly UserManager<ApplicationUser> _users;
 
-    public RolesController(RoleManager<IdentityRole> roles, UserManager<ApplicationUser> users)
+    private readonly ApplicationDbContext _db;
+
+    public RolesController(RoleManager<IdentityRole> roles, UserManager<ApplicationUser> users, ApplicationDbContext db)
     {
         _roles = roles;
         _users = users;
+        _db = db;
     }
 
     public async Task<IActionResult> Index()
@@ -242,7 +268,7 @@ public class RolesController : AppController
             {
                 Id = r.Id,
                 Name = r.Name ?? "",
-                Users = (await _users.GetUsersInRoleAsync(r.Name!)).Count,
+                Users = await _db.UserRoles.CountAsync(ur => ur.RoleId == r.Id), // counted in the database, users not loaded
                 Permissions = (await _roles.GetClaimsAsync(r)).Count(c => c.Type == Permissions.ClaimType)
             });
         }

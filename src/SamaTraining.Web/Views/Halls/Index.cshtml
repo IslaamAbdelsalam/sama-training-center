@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = L["Halls & Locations"];
     var uses = (Dictionary<int, int>)ViewBag.Uses;
+    var (fq, fstatus, fsize) = ((string?, string?, int?))ViewBag.Filter;
     var highlight = TempData["Highlight"] as string;
 }
 <div class="d-flex justify-content-between align-items-center mb-6">
@@ -10,6 +11,30 @@
         <p class="mb-0 text-body-secondary">@L["Places available for on-site workshops."]</p>
     </div>
     <a asp-action="Create" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1"></i>@L["Add hall"]</a>
+</div>
+
+<div class="card mb-6">
+    <div class="card-body">
+        <form method="get" class="row g-4 align-items-end">
+            @if (fsize.HasValue) { <input type="hidden" name="size" value="@fsize" /> }
+            <div class="col-md-7">
+                <label class="form-label" for="q">@L["Search"]</label>
+                <input type="text" id="q" name="q" value="@fq" maxlength="100" class="form-control" placeholder="@L["Name or location"]" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="status">@L["Status"]</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">@L["All"]</option>
+                    <!option value="active" selected="@(fstatus == "active")">@L["Active"]</!option>
+                    <!option value="inactive" selected="@(fstatus == "inactive")">@L["Inactive"]</!option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="icon-base ri ri-filter-3-line me-1"></i>@L["Filter"]</button>
+                <a asp-action="Index" class="btn btn-outline-secondary" title="@L["Reset"]"><i class="icon-base ri ri-refresh-line"></i></a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
@@ -21,7 +46,7 @@
             <tbody class="table-border-bottom-0">
             @if (Model.Count == 0)
             {
-                <tr><td colspan="6" class="text-center text-body-secondary py-6">@L["No halls yet."]</td></tr>
+                <tr><td colspan="6" class="text-center text-body-secondary py-6">@(string.IsNullOrEmpty(fq) && string.IsNullOrEmpty(fstatus) ? L["No halls yet."] : L["No halls match these filters."])</td></tr>
             }
             @foreach (var h in Model)
             {

@@ -11,7 +11,16 @@ namespace SamaTraining.Web.Services;
 public static class Paging
 {
     public const int DefaultSize = 25;
-    public const int DetailSize = 50;
+    public const int DetailSize = 25;
+
+    /// <summary>The only page sizes a user can pick; anything else falls back to the default.</summary>
+    public static readonly int[] Sizes = { 10, 25, 50, 100 };
+
+    public static int Size(int? requested, int fallback = DefaultSize) =>
+        requested.HasValue && Sizes.Contains(requested.Value) ? requested.Value : fallback;
+
+    /// <summary>Position of the first row on this page (display only; 0 on the first page).</summary>
+    public static int At(int? at, bool isPaged) => isPaged && at is > 0 and < 10_000_000 ? at.Value : 0;
 
     public static string Encode(params object[] parts) =>
         Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Join('|', parts.Select(p => p switch
@@ -60,6 +69,16 @@ public class PageLinks
 {
     /// <summary>Query-string name of the cursor (each list on a page has its own).</summary>
     public string Param { get; set; } = "cursor";
+
+    /// <summary>Query-string names of the page size and the first row's position.</summary>
+    public string SizeParam { get; set; } = "size";
+    public string AtParam { get; set; } = "at";
+
+    /// <summary>Rows per page chosen by the user (10 / 25 / 50 / 100).</summary>
+    public int Size { get; set; } = Paging.DefaultSize;
+
+    /// <summary>Rows before this page (0 on the first page).</summary>
+    public int At { get; set; }
 
     /// <summary>Cursor for the next page, or null on the last page.</summary>
     public string? Next { get; set; }

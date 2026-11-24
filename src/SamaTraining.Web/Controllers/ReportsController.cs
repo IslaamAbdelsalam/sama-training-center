@@ -37,11 +37,12 @@ public class ReportsController : AppController
         if (cur != null && Paging.TryDate(cur[0], out var afterStart) && Paging.TryInt(cur[1], out var afterId))
             rows = rows.Where(r => r.StartDateTime < afterStart || (r.StartDateTime == afterStart && r.Id < afterId));
         else cur = null;
-        var (page, more) = Paging.Trim(rows.Take(Paging.DefaultSize + 1).ToList(), Paging.DefaultSize);
+        var size = Paging.Size(filter.Size);
+        var (page, more) = Paging.Trim(rows.Take(size + 1).ToList(), size);
         model.PageRows = page;
         model.Pager = new PageLinks
         {
-            IsPaged = cur != null, Shown = page.Count, Total = model.Rows.Count,
+            IsPaged = cur != null, Shown = page.Count, Total = model.Rows.Count, Size = size, At = Paging.At(filter.At, cur != null),
             Next = more ? Paging.Encode(page[^1].StartDateTime, page[^1].Id) : null
         };
 

@@ -304,4 +304,18 @@
       document.getElementById('cancel-reason').value = '';
     });
   }
+
+  // ---- Pager: rows-per-page picker and "Previous page" (goes back one step, as the cursor only moves forward) ----
+  document.querySelectorAll('select[data-page-size]').forEach(function (sel) {
+    sel.addEventListener('change', function () { if (sel.value) window.location.href = sel.value; });
+  });
+  document.addEventListener('click', function (e) {
+    var back = e.target.closest && e.target.closest('a[data-page-back]');
+    if (!back) return;
+    // Came here from the previous page of this list: step back. Otherwise the link opens the first page.
+    if (document.referrer && document.referrer.indexOf(window.location.origin + window.location.pathname) === 0 && window.history.length > 1) {
+      e.preventDefault();
+      window.history.back();
+    }
+  });
 })();

@@ -60,9 +60,10 @@ public class WorkshopsController : AppController
         }
         else cur = null;
 
+        var size = Paging.Size(filter.Size);
         var rows = await query
             .OrderByDescending(w => w.StartDateTime).ThenByDescending(w => w.Id)
-            .Take(Paging.DefaultSize + 1)
+            .Take(size + 1)
             .Select(w => new WorkshopListItem
             {
                 Id = w.Id,
@@ -79,7 +80,7 @@ public class WorkshopsController : AppController
                 Registrations = w.Registrations.Count(r => !r.IsCancelled)
             })
             .ToListAsync();
-        var (items, more) = Paging.Trim(rows, Paging.DefaultSize);
+        var (items, more) = Paging.Trim(rows, size);
 
         return View(new WorkshopIndexViewModel
         {
@@ -88,16 +89,19 @@ public class WorkshopsController : AppController
             Total = total,
             Pager = new PageLinks
             {
-                IsPaged = cur != null, Shown = items.Count, Total = total,
+                IsPaged = cur != null, Shown = items.Count, Total = total, Size = size, At = Paging.At(filter.At, cur != null),
                 Next = more ? Paging.Encode(items[^1].StartDateTime, items[^1].Id) : null
             }
         });
     }
 
     [HasPermission(Permissions.WorkshopsView)]
-    public async Task<IActionResult> Details(int id, string tab = "overview", string? rcur = null, string? ecur = null, string? ccur = null)
+    public async Task<IActionResult> Details(int id, [FromQuery] WorkshopListsQuery lists, string tab = "overview")
     {
         if (tab.Length > 20) tab = "overview";
+        lists.RQ = WorkshopListsQuery.Clean(lists.RQ);
+        lists.EQ = WorkshopListsQuery.Clean(lists.EQ);
+        lists.CQ = WorkshopListsQuery.Clean(lists.CQ);
         var workshop = await _db.Workshops.Include(w => w.Hall).FirstOrDefaultAsync(w => w.Id == id);
         if (workshop == null) return NotFound();
 
@@ -112,7 +116,8 @@ public class WorkshopsController : AppController
             NextStatus = WorkshopService.NextStatus(workshop.Status),
             PreviousStatus = WorkshopService.PreviousStatus(workshop.Status),
             RegistrationCount = await _service.CountRegistrationsAsync(workshop.Id),
-            History = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == id).OrderBy(h => h.ChangedAt).ToListAsync()
+            History = await _db.WorkshopStatusHistory.Where(h => h.WorkshopId == id).OrderBy(h => h.ChangedAt).ToListAsync(),
+            Lists = lists
         };
 
         if (workshop.RegistrationToken != null)
@@ -126,7 +131,17 @@ public class WorkshopsController : AppController
             var regs = _db.Registrations.Where(r => r.WorkshopId == id);
             model.CancelledCount = await regs.CountAsync(r => r.IsCancelled);
             model.RegistrationListTotal = await regs.CountAsync();
-            var cur = Paging.Decode(rcur, 3);
+
+            // Filters: name / email / phone / organization, active or cancelled, paid or not.
+            if (lists.RQ is { } rq)
+                regs = regs.Where(r => r.FullName.Contains(rq) || r.Email.Contains(rq) || r.Phone.Contains(rq) || (r.Organization != null && r.Organization.Contains(rq)));
+            if (lists.RStatus == "active") regs = regs.Where(r => !r.IsCancelled);
+            else if (lists.RStatus == "cancelled") regs = regs.Where(r => r.IsCancelled);
+            if (lists.RPay == "paid") regs = regs.Where(r => _db.FeeCollections.Any(c => c.RegistrationId == r.Id));
+            else if (lists.RPay == "unpaid") regs = regs.Where(r => !_db.FeeCollections.Any(c => c.RegistrationId == r.Id));
+            model.RegistrationFilteredTotal = await regs.CountAsync();
+
+            var cur = Paging.Decode(lists.RCur, 3);
             if (cur != null && Paging.TryInt(cur[0], out var c0) && Paging.TryDate(cur[1], out var at) && Paging.TryInt(cur[2], out var rid))
             {
                 var cancelled = c0 == 1;
@@ -134,13 +149,15 @@ public class WorkshopsController : AppController
                     || (r.IsCancelled == cancelled && (r.RegisteredAt < at || (r.RegisteredAt == at && r.Id < rid))));
             }
             else cur = null;
+            var rSize = Paging.Size(lists.RSize, Paging.DetailSize);
             var (regPage, moreRegs) = Paging.Trim(await regs
                 .OrderBy(r => r.IsCancelled).ThenByDescending(r => r.RegisteredAt).ThenByDescending(r => r.Id)
-                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+                .Take(rSize + 1).ToListAsync(), rSize);
             model.Registrations = regPage;
             model.RegistrationsPager = new PageLinks
             {
-                Param = "rcur", Tab = "registrations", IsPaged = cur != null, Shown = regPage.Count, Total = model.RegistrationListTotal,
+                Param = "rcur", SizeParam = "rsize", AtParam = "rat", Size = rSize, At = Paging.At(lists.RAt, cur != null),
+                Tab = "registrations", IsPaged = cur != null, Shown = regPage.Count, Total = model.RegistrationFilteredTotal,
                 Next = moreRegs ? Paging.Encode(regPage[^1].IsCancelled ? 1 : 0, regPage[^1].RegisteredAt, regPage[^1].Id) : null
             };
 
@@ -167,17 +184,25 @@ public class WorkshopsController : AppController
             var amounts = await _db.WorkshopExpenses.Where(e => e.WorkshopId == id).Select(e => e.Amount).ToListAsync();
             model.TotalExpenses = amounts.Sum();
             model.ExpenseTotalCount = amounts.Count;
+            model.ExpenseCategoryOptions = (await _db.WorkshopExpenses.Where(e => e.WorkshopId == id)
+                    .Select(e => new { e.ExpenseCategoryId, e.ExpenseCategory!.Name, e.ExpenseCategory.NameAr }).Distinct().ToListAsync())
+                .Select(c => (c.ExpenseCategoryId, UiText.Pick(c.Name, c.NameAr))).OrderBy(c => c.Item2).ToList();
             var exp = _db.WorkshopExpenses.Include(e => e.ExpenseCategory).Where(e => e.WorkshopId == id);
-            var cur = Paging.Decode(ecur, 2);
+            if (lists.EQ is { } eq) exp = exp.Where(e => e.Description != null && e.Description.Contains(eq));
+            if (lists.ECat.HasValue) exp = exp.Where(e => e.ExpenseCategoryId == lists.ECat);
+            model.ExpenseFilteredTotal = await exp.CountAsync();
+            var cur = Paging.Decode(lists.ECur, 2);
             if (cur != null && Paging.TryDate(cur[0], out var d) && Paging.TryInt(cur[1], out var eid))
                 exp = exp.Where(e => e.ExpenseDate < d || (e.ExpenseDate == d && e.Id < eid));
             else cur = null;
+            var eSize = Paging.Size(lists.ESize, Paging.DetailSize);
             var (expPage, moreExp) = Paging.Trim(await exp.OrderByDescending(e => e.ExpenseDate).ThenByDescending(e => e.Id)
-                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+                .Take(eSize + 1).ToListAsync(), eSize);
             model.Expenses = expPage;
             model.ExpensesPager = new PageLinks
             {
-                Param = "ecur", Tab = "expenses", IsPaged = cur != null, Shown = expPage.Count, Total = model.ExpenseTotalCount,
+                Param = "ecur", SizeParam = "esize", AtParam = "eat", Size = eSize, At = Paging.At(lists.EAt, cur != null),
+                Tab = "expenses", IsPaged = cur != null, Shown = expPage.Count, Total = model.ExpenseFilteredTotal,
                 Next = moreExp ? Paging.Encode(expPage[^1].ExpenseDate, expPage[^1].Id) : null
             };
         }
@@ -186,16 +211,21 @@ public class WorkshopsController : AppController
         {
             var col = _db.FeeCollections.Include(c => c.Registration).Where(c => c.WorkshopId == id);
             model.CollectionTotalCount = await col.CountAsync();
-            var cur = Paging.Decode(ccur, 2);
+            if (lists.CQ is { } cq) col = col.Where(c => c.Registration!.FullName.Contains(cq) || c.Registration.Phone.Contains(cq) || (c.Reference != null && c.Reference.Contains(cq)));
+            if (lists.CMethod.HasValue) col = col.Where(c => c.Method == lists.CMethod);
+            model.CollectionFilteredTotal = await col.CountAsync();
+            var cur = Paging.Decode(lists.CCur, 2);
             if (cur != null && Paging.TryDate(cur[0], out var d) && Paging.TryInt(cur[1], out var cid))
                 col = col.Where(c => c.CollectedOn < d || (c.CollectedOn == d && c.Id < cid));
             else cur = null;
+            var cSize = Paging.Size(lists.CSize, Paging.DetailSize);
             var (colPage, moreCol) = Paging.Trim(await col.OrderByDescending(c => c.CollectedOn).ThenByDescending(c => c.Id)
-                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+                .Take(cSize + 1).ToListAsync(), cSize);
             model.Collections = colPage;
             model.CollectionsPager = new PageLinks
             {
-                Param = "ccur", Tab = "payments", IsPaged = cur != null, Shown = colPage.Count, Total = model.CollectionTotalCount,
+                Param = "ccur", SizeParam = "csize", AtParam = "cat", Size = cSize, At = Paging.At(lists.CAt, cur != null),
+                Tab = "payments", IsPaged = cur != null, Shown = colPage.Count, Total = model.CollectionFilteredTotal,
                 Next = moreCol ? Paging.Encode(colPage[^1].CollectedOn, colPage[^1].Id) : null
             };
         }
