@@ -9,21 +9,22 @@ namespace SamaTraining.Web.Models;
 
 public class LoginViewModel
 {
-    [Required, Display(Name = "Username or email")]
+    [Required, StringLength(256), Display(Name = "Username or email")]
     public string UserNameOrEmail { get; set; } = string.Empty;
 
-    [Required, DataType(DataType.Password)]
+    [Required, StringLength(128), DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
     [Display(Name = "Remember me")]
     public bool RememberMe { get; set; }
 
+    [StringLength(2048)]
     public string? ReturnUrl { get; set; }
 }
 
 public class ChangePasswordViewModel
 {
-    [Required, DataType(DataType.Password), Display(Name = "Current password")]
+    [Required, StringLength(128), DataType(DataType.Password), Display(Name = "Current password")]
     public string CurrentPassword { get; set; } = string.Empty;
 
     [Required, DataType(DataType.Password), Display(Name = "New password")]
@@ -39,16 +40,16 @@ public class ChangePasswordViewModel
 
 public class ForgotPasswordViewModel
 {
-    [Required(ErrorMessage = "Enter your username or email."), Display(Name = "Username or email")]
+    [Required(ErrorMessage = "Enter your username or email."), StringLength(256), Display(Name = "Username or email")]
     public string UserNameOrEmail { get; set; } = string.Empty;
 }
 
 public class SetNewPasswordViewModel
 {
-    [Required]
+    [Required, StringLength(450)]
     public string UserId { get; set; } = string.Empty;
 
-    [Required]
+    [Required, StringLength(2048)]
     public string Token { get; set; } = string.Empty;
 
     [Required, DataType(DataType.Password), Display(Name = "New password")]
@@ -157,10 +158,17 @@ public class HallFormModel
 
 public class WorkshopFilterModel
 {
+    [StringLength(100)]
     public string? Search { get; set; }
     public WorkshopStatus? Status { get; set; }
     public WorkshopType? Type { get; set; }
+
+    [StringLength(2)]
     public string? Country { get; set; }
+
+    /// <summary>Opaque position of the next page (cursor pagination).</summary>
+    [StringLength(200)]
+    public string? Cursor { get; set; }
 
     [DataType(DataType.Date)]
     public DateTime? From { get; set; }
@@ -189,6 +197,8 @@ public class WorkshopIndexViewModel
 {
     public WorkshopFilterModel Filter { get; set; } = new();
     public List<WorkshopListItem> Items { get; set; } = new();
+    public int Total { get; set; }
+    public PageLinks Pager { get; set; } = new();
 }
 
 public class WorkshopFormModel
@@ -222,7 +232,7 @@ public class WorkshopFormModel
     [Required, Display(Name = "Workshop type")]
     public WorkshopType? Type { get; set; }
 
-    [Required(ErrorMessage = "Choose the country where the workshop runs."), Display(Name = "Country")]
+    [Required(ErrorMessage = "Choose the country where the workshop runs."), StringLength(2), Display(Name = "Country")]
     public string? Country { get; set; }
 
     /// <summary>True when expenses exist, so the country (and currency) can no longer change.</summary>
@@ -247,10 +257,10 @@ public class WorkshopFormModel
     [StringLength(1000), Display(Name = "وصف مختصر (Arabic)")]
     public string? DescriptionAr { get; set; }
 
-    [Display(Name = "Content / agenda (English)")]
+    [StringLength(50000, ErrorMessage = "The agenda is too long (maximum 50,000 characters including formatting)."), Display(Name = "Content / agenda (English)")]
     public string? Content { get; set; }
 
-    [Display(Name = "المحتوى / المحاور (Arabic)")]
+    [StringLength(50000, ErrorMessage = "The agenda is too long (maximum 50,000 characters including formatting)."), Display(Name = "المحتوى / المحاور (Arabic)")]
     public string? ContentAr { get; set; }
 
     public IEnumerable<SelectListItem> Halls { get; set; } = Enumerable.Empty<SelectListItem>();
@@ -285,6 +295,14 @@ public class WorkshopDetailsViewModel
 
     /// <summary>Cancelled registrations on the list (not counted anywhere).</summary>
     public int CancelledCount { get; set; }
+
+    /// <summary>Cursor pagination: totals and pagers for the three lists on the workshop page.</summary>
+    public int RegistrationListTotal { get; set; }
+    public int ExpenseTotalCount { get; set; }
+    public int CollectionTotalCount { get; set; }
+    public PageLinks RegistrationsPager { get; set; } = new();
+    public PageLinks ExpensesPager { get; set; } = new();
+    public PageLinks CollectionsPager { get; set; } = new();
 
     /// <summary>More active participants than seats (after restoring a cancellation).</summary>
     public bool OverCapacity { get; set; }
@@ -363,6 +381,9 @@ public class PublicRegistrationViewModel
 
     public string? Error { get; set; }
     public PublicRegistrationForm Form { get; set; } = new();
+
+    /// <summary>Signed time stamp for the invisible robot check.</summary>
+    public string FormStamp { get; set; } = string.Empty;
 }
 
 public class PublicRegistrationForm
@@ -400,10 +421,10 @@ public class UserFormModel
     [Required, EmailAddress, StringLength(256)]
     public string Email { get; set; } = string.Empty;
 
-    [Phone, Display(Name = "Phone number")]
+    [Phone, StringLength(30), Display(Name = "Phone number")]
     public string? PhoneNumber { get; set; }
 
-    [DataType(DataType.Password), Display(Name = "Initial password")]
+    [StringLength(128), DataType(DataType.Password), Display(Name = "Initial password")]
     public string? Password { get; set; }
 
     [Display(Name = "Active")]
@@ -418,7 +439,7 @@ public class ResetPasswordViewModel
     public string Id { get; set; } = string.Empty;
     public string? UserName { get; set; }
 
-    [Required, DataType(DataType.Password), Display(Name = "New temporary password")]
+    [Required, StringLength(128), DataType(DataType.Password), Display(Name = "New temporary password")]
     public string NewPassword { get; set; } = string.Empty;
 }
 

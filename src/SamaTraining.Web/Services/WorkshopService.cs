@@ -216,9 +216,11 @@ public class WorkshopService
     /// but it stays on the list so the same person can't register for this workshop again.
     /// Not allowed once the participant has paid, or after the workshop is completed.
     /// </summary>
-    public async Task<ParticipantChange> CancelRegistrationAsync(int registrationId, string? userName, string? reason)
+    public async Task<ParticipantChange> CancelRegistrationAsync(int registrationId, string? userName, string? reason, int? workshopId = null)
     {
-        var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
+        // Row check: the registration must belong to the workshop the request came from.
+        var r = await _db.Registrations.Include(x => x.Workshop)
+            .FirstOrDefaultAsync(x => x.Id == registrationId && (workshopId == null || x.WorkshopId == workshopId));
         if (r == null) return new ParticipantChange(false, UiText.Get("Registration not found."));
         if (r.IsCancelled) return new ParticipantChange(true, Name: r.FullName);
         if (r.Workshop!.Status == WorkshopStatus.Completed)
@@ -230,7 +232,7 @@ public class WorkshopService
         r.IsCancelled = true;
         r.CancelledAt = now;
         r.CancelledBy = userName;
-        r.CancelReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        r.CancelReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim() is var t && t.Length > 250 ? t[..250] : reason.Trim();
         _db.WorkshopStatusHistory.Add(new WorkshopStatusHistory
         {
             WorkshopId = r.WorkshopId, Action = WorkshopHistoryAction.ParticipantCancelled,
@@ -245,9 +247,10 @@ public class WorkshopService
     /// Undoes a cancellation made by mistake. Always allowed (before completion), even when the seat was taken
     /// meanwhile: the result then reports OverCapacity so an administrator can sort it out.
     /// </summary>
-    public async Task<ParticipantChange> RestoreRegistrationAsync(int registrationId, string? userName)
+    public async Task<ParticipantChange> RestoreRegistrationAsync(int registrationId, string? userName, int? workshopId = null)
     {
-        var r = await _db.Registrations.Include(x => x.Workshop).FirstOrDefaultAsync(x => x.Id == registrationId);
+        var r = await _db.Registrations.Include(x => x.Workshop)
+            .FirstOrDefaultAsync(x => x.Id == registrationId && (workshopId == null || x.WorkshopId == workshopId));
         if (r == null) return new ParticipantChange(false, UiText.Get("Registration not found."));
         if (r.Workshop!.Status == WorkshopStatus.Completed)
             return new ParticipantChange(false, UiText.Get("The workshop is completed, so its participants can't change."), r.FullName);

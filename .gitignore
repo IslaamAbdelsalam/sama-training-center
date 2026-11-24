@@ -482,3 +482,21 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# ---- SAMA: secrets never go to GitHub ----
+# Server-only settings (connection string, admin password, SMTP) live in <site root>/private/
+private/
+**/private/
+appsettings.Production.json
+appsettings.*.local.json
+*.secrets.json
+smtp.json
+first-admin-password.txt
+App_Data/
+*.db
+*.db-shm
+*.db-wal
+*.pem
+*.key
+*.p12
+.env.*

@@ -15,12 +15,27 @@ public class ExpenseCategoriesController : AppController
 
     public ExpenseCategoriesController(ApplicationDbContext db) => _db = db;
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? cursor)
     {
-        var items = await _db.ExpenseCategories
-            .OrderBy(c => c.Name)
+        var query = _db.ExpenseCategories.AsQueryable();
+        var total = await query.CountAsync();
+        var cur = Paging.Decode(cursor, 2);
+        if (cur != null && Paging.TryInt(cur[1], out var afterId))
+        {
+            var afterName = cur[0];
+            query = query.Where(c => string.Compare(c.Name, afterName) > 0 || (c.Name == afterName && c.Id > afterId));
+        }
+        else cur = null;
+        var (items, more) = Paging.Trim(await query
+            .OrderBy(c => c.Name).ThenBy(c => c.Id)
+            .Take(Paging.DetailSize + 1)
             .Select(c => new { Category = c, Uses = c.Expenses.Count })
-            .ToListAsync();
+            .ToListAsync(), Paging.DetailSize);
+        ViewBag.Pager = new PageLinks
+        {
+            IsPaged = cur != null, Shown = items.Count, Total = total,
+            Next = more ? Paging.Encode(items[^1].Category.Name, items[^1].Category.Id) : null
+        };
 
         ViewBag.Uses = items.ToDictionary(i => i.Category.Id, i => i.Uses);
         return View(items.Select(i => i.Category).ToList());
@@ -105,12 +120,27 @@ public class HallsController : AppController
 
     public HallsController(ApplicationDbContext db) => _db = db;
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? cursor)
     {
-        var items = await _db.Halls
-            .OrderBy(h => h.Name)
+        var query = _db.Halls.AsQueryable();
+        var total = await query.CountAsync();
+        var cur = Paging.Decode(cursor, 2);
+        if (cur != null && Paging.TryInt(cur[1], out var afterId))
+        {
+            var afterName = cur[0];
+            query = query.Where(h => string.Compare(h.Name, afterName) > 0 || (h.Name == afterName && h.Id > afterId));
+        }
+        else cur = null;
+        var (items, more) = Paging.Trim(await query
+            .OrderBy(h => h.Name).ThenBy(h => h.Id)
+            .Take(Paging.DetailSize + 1)
             .Select(h => new { Hall = h, Uses = h.Workshops.Count })
-            .ToListAsync();
+            .ToListAsync(), Paging.DetailSize);
+        ViewBag.Pager = new PageLinks
+        {
+            IsPaged = cur != null, Shown = items.Count, Total = total,
+            Next = more ? Paging.Encode(items[^1].Hall.Name, items[^1].Hall.Id) : null
+        };
 
         ViewBag.Uses = items.ToDictionary(i => i.Hall.Id, i => i.Uses);
         return View(items.Select(i => i.Hall).ToList());

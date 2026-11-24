@@ -22,9 +22,23 @@ public class UsersController : AppController
         _roles = roles;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? cursor)
     {
-        var users = await _users.Users.OrderBy(u => u.FullName).ToListAsync();
+        // Cursor pagination by (full name, id).
+        var query = _users.Users;
+        var total = await query.CountAsync();
+        var cur = Paging.Decode(cursor, 2);
+        if (cur != null)
+        {
+            var (afterName, afterId) = (cur[0], cur[1]);
+            query = query.Where(u => string.Compare(u.FullName, afterName) > 0 || (u.FullName == afterName && string.Compare(u.Id, afterId) > 0));
+        }
+        var (users, more) = Paging.Trim(await query.OrderBy(u => u.FullName).ThenBy(u => u.Id).Take(Paging.DefaultSize + 1).ToListAsync(), Paging.DefaultSize);
+        ViewBag.Pager = new PageLinks
+        {
+            IsPaged = cur != null, Shown = users.Count, Total = total,
+            Next = more ? Paging.Encode(users[^1].FullName, users[^1].Id) : null
+        };
         var list = new List<UserListItem>();
         foreach (var u in users)
         {

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using SamaTraining.Web.Data;
+using SamaTraining.Web.Services;
 
 namespace SamaTraining.Web.Models;
 
@@ -11,9 +12,14 @@ public class ReportFilter
     [DataType(DataType.Date)]
     public DateTime? To { get; set; }
 
+    [StringLength(2)]
     public string? Country { get; set; }
 
     public WorkshopStatus? Status { get; set; }
+
+    /// <summary>Opaque position of the next page of the table (cursor pagination).</summary>
+    [StringLength(200)]
+    public string? Cursor { get; set; }
 }
 
 /// <summary>One currency's totals. Money in different currencies is never added together.</summary>
@@ -88,6 +94,10 @@ public class ReportViewModel
     public ReportFilter Filter { get; set; } = new();
     public List<CurrencySummary> Summaries { get; set; } = new();
     public List<WorkshopReportRow> Rows { get; set; } = new();
+
+    /// <summary>The rows shown in the table: one page at a time (cursor); totals still cover the whole period.</summary>
+    public List<WorkshopReportRow> PageRows { get; set; } = new();
+    public PageLinks Pager { get; set; } = new();
     public List<CurrencyCategoryBreakdown> CategoryBreakdowns { get; set; } = new();
     public List<MonthCount> RegistrationsByMonth { get; set; } = new();
     public int TotalRegistrations => Rows.Sum(r => r.Registrations);

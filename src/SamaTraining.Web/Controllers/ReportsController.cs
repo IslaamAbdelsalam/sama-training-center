@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using SamaTraining.Web.Models;
@@ -30,11 +31,26 @@ public class ReportsController : AppController
             foreach (var r in model.Rows) { r.ExpectedIncome = 0; r.Collected = 0; r.TargetIncome = 0; }
         }
 
+        // Cursor pagination of the table (newest first): the cursor is the last row's (start, id).
+        IEnumerable<WorkshopReportRow> rows = model.Rows;
+        var cur = Paging.Decode(filter.Cursor, 2);
+        if (cur != null && Paging.TryDate(cur[0], out var afterStart) && Paging.TryInt(cur[1], out var afterId))
+            rows = rows.Where(r => r.StartDateTime < afterStart || (r.StartDateTime == afterStart && r.Id < afterId));
+        else cur = null;
+        var (page, more) = Paging.Trim(rows.Take(Paging.DefaultSize + 1).ToList(), Paging.DefaultSize);
+        model.PageRows = page;
+        model.Pager = new PageLinks
+        {
+            IsPaged = cur != null, Shown = page.Count, Total = model.Rows.Count,
+            Next = more ? Paging.Encode(page[^1].StartDateTime, page[^1].Id) : null
+        };
+
         ViewBag.ShowMoney = User.Can(Permissions.ExpensesView);
         ViewBag.ShowIncome = User.Can(Permissions.CollectionsView);
         return View(model);
     }
 
+    [EnableRateLimiting(AbuseProtection.Export)]
     public async Task<IActionResult> Export(ReportFilter filter)
     {
         var model = await _reports.BuildAsync(filter);
@@ -67,7 +83,7 @@ public class ReportsController : AppController
     private static string Csv(string? value)
     {
         if (string.IsNullOrEmpty(value)) return "";
-        if ("=+-@".Contains(value[0])) value = "'" + value;
+        if ("=+-@\t\r".Contains(value[0])) value = "'" + value;
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 }

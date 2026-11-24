@@ -90,6 +90,7 @@ public static class DbSeeder
                 options.Password = GeneratePassword();
                 try
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.PasswordFile))!);
                     await File.WriteAllTextAsync(options.PasswordFile,
                         $"SAMA Training Center - first administrator{Environment.NewLine}" +
                         $"Username: {options.UserName}{Environment.NewLine}" +

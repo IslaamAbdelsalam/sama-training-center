@@ -151,6 +151,12 @@
                         }
                         <form method="post" action="@actionUrl" novalidate>
                             @Html.AntiForgeryToken()
+                            <input type="hidden" name="fs" value="@Model.FormStamp" />
+                            @* Robots fill in every field; people never see this one. *@
+                            <div class="hp-field" aria-hidden="true">
+                                <label for="website">Website</label>
+                                <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" value="" />
+                            </div>
                             <div class="mb-4">
                                 <label class="form-label" for="FullName">@T.Get("FullName", l)</label>
                                 <input id="FullName" name="FullName" value="@Model.Form.FullName" class="form-control @Invalid("FullName")" maxlength="150" autocomplete="name" dir="auto" placeholder="@T.Get("FullNameHint", l)" required />

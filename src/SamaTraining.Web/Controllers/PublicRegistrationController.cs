@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using SamaTraining.Web.Security;
 using SamaTraining.Web.Data;
 using SamaTraining.Web.Models;
 using SamaTraining.Web.Services;
@@ -14,12 +16,16 @@ public class PublicRegistrationController : Controller
     private readonly WorkshopService _service;
     private readonly PublicText _text;
     private readonly PhoneNumberService _phones;
+    private readonly FormBotGuard _bots;
+    private readonly ILogger<PublicRegistrationController> _log;
 
-    public PublicRegistrationController(WorkshopService service, PublicText text, PhoneNumberService phones)
+    public PublicRegistrationController(WorkshopService service, PublicText text, PhoneNumberService phones, FormBotGuard bots, ILogger<PublicRegistrationController> log)
     {
         _service = service;
         _text = text;
         _phones = phones;
+        _bots = bots;
+        _log = log;
     }
 
     [HttpGet]
@@ -29,7 +35,7 @@ public class PublicRegistrationController : Controller
         return View(model);
     }
 
-    [HttpPost]
+    [HttpPost, EnableRateLimiting(AbuseProtection.PublicForm)]
     public async Task<IActionResult> Index(string token, string? lang, PublicRegistrationForm form)
     {
         var model = await BuildAsync(token, lang);
@@ -37,6 +43,17 @@ public class PublicRegistrationController : Controller
         if (model.State != "form")
         {
             return View(model);
+        }
+
+        // Invisible robot check: robots get a normal-looking "done" page and nothing is saved.
+        switch (_bots.Check(Request.Form))
+        {
+            case FormBotGuard.Verdict.Robot:
+                _log.LogWarning("Robot registration blocked from {Ip} for workshop {WorkshopId}", AbuseProtection.ClientKey(HttpContext), model.Workshop?.Id);
+                return RedirectToAction(nameof(Done), new { token, lang = model.Lang });
+            case FormBotGuard.Verdict.Expired:
+                model.Error = _text.Get("TryAgain", model.Lang);
+                return View(model);
         }
 
         // Validation messages in the visitor's language.
@@ -106,8 +123,10 @@ public class PublicRegistrationController : Controller
 
     private async Task<PublicRegistrationViewModel> BuildAsync(string token, string? lang)
     {
-        var model = new PublicRegistrationViewModel { Token = token, Lang = PublicText.Normalize(lang) };
-        var workshop = string.IsNullOrWhiteSpace(token) ? null : await _service.FindByTokenAsync(token);
+        var model = new PublicRegistrationViewModel { Token = token, Lang = PublicText.Normalize(lang), FormStamp = _bots.NewStamp() };
+        // Tokens are short random strings: anything else is rejected without touching the database.
+        var validToken = !string.IsNullOrWhiteSpace(token) && token.Length <= 64 && token.All(ch => char.IsAsciiLetterOrDigit(ch) || ch == '-' || ch == '_');
+        var workshop = validToken ? await _service.FindByTokenAsync(token) : null;
 
         if (workshop == null)
         {

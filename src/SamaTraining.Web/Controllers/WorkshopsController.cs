@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -30,6 +31,8 @@ public class WorkshopsController : AppController
     public async Task<IActionResult> Index(WorkshopFilterModel filter)
     {
         var query = _db.Workshops.AsNoTracking().AsQueryable();
+        if (filter.Search?.Length > 100) filter.Search = filter.Search[..100];
+        if (filter.Country?.Length > 2) filter.Country = null;
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
@@ -47,8 +50,19 @@ public class WorkshopsController : AppController
             query = query.Where(w => w.StartDateTime < end);
         }
 
-        var items = await query
-            .OrderByDescending(w => w.StartDateTime)
+        var total = await query.CountAsync();
+
+        // Cursor pagination: newest first; the cursor is the last row's (start, id).
+        var cur = Paging.Decode(filter.Cursor, 2);
+        if (cur != null && Paging.TryDate(cur[0], out var afterStart) && Paging.TryInt(cur[1], out var afterId))
+        {
+            query = query.Where(w => w.StartDateTime < afterStart || (w.StartDateTime == afterStart && w.Id < afterId));
+        }
+        else cur = null;
+
+        var rows = await query
+            .OrderByDescending(w => w.StartDateTime).ThenByDescending(w => w.Id)
+            .Take(Paging.DefaultSize + 1)
             .Select(w => new WorkshopListItem
             {
                 Id = w.Id,
@@ -65,13 +79,25 @@ public class WorkshopsController : AppController
                 Registrations = w.Registrations.Count(r => !r.IsCancelled)
             })
             .ToListAsync();
+        var (items, more) = Paging.Trim(rows, Paging.DefaultSize);
 
-        return View(new WorkshopIndexViewModel { Filter = filter, Items = items });
+        return View(new WorkshopIndexViewModel
+        {
+            Filter = filter,
+            Items = items,
+            Total = total,
+            Pager = new PageLinks
+            {
+                IsPaged = cur != null, Shown = items.Count, Total = total,
+                Next = more ? Paging.Encode(items[^1].StartDateTime, items[^1].Id) : null
+            }
+        });
     }
 
     [HasPermission(Permissions.WorkshopsView)]
-    public async Task<IActionResult> Details(int id, string tab = "overview")
+    public async Task<IActionResult> Details(int id, string tab = "overview", string? rcur = null, string? ecur = null, string? ccur = null)
     {
+        if (tab.Length > 20) tab = "overview";
         var workshop = await _db.Workshops.Include(w => w.Hall).FirstOrDefaultAsync(w => w.Id == id);
         if (workshop == null) return NotFound();
 
@@ -96,11 +122,33 @@ public class WorkshopsController : AppController
 
         if (User.Can(Permissions.RegistrationsView))
         {
-            // Active first (newest first), then cancelled ones at the bottom.
-            model.Registrations = await _db.Registrations.Where(r => r.WorkshopId == id)
-                .OrderBy(r => r.IsCancelled).ThenByDescending(r => r.RegisteredAt).ToListAsync();
-            model.CancelledCount = model.Registrations.Count(r => r.IsCancelled);
-            model.PaidRegistrationIds = (await _db.FeeCollections.Where(c => c.WorkshopId == id).Select(c => c.RegistrationId).Distinct().ToListAsync()).ToHashSet();
+            // Active first (newest first), then cancelled ones at the bottom. One page at a time (cursor).
+            var regs = _db.Registrations.Where(r => r.WorkshopId == id);
+            model.CancelledCount = await regs.CountAsync(r => r.IsCancelled);
+            model.RegistrationListTotal = await regs.CountAsync();
+            var cur = Paging.Decode(rcur, 3);
+            if (cur != null && Paging.TryInt(cur[0], out var c0) && Paging.TryDate(cur[1], out var at) && Paging.TryInt(cur[2], out var rid))
+            {
+                var cancelled = c0 == 1;
+                regs = regs.Where(r => (!cancelled && r.IsCancelled)
+                    || (r.IsCancelled == cancelled && (r.RegisteredAt < at || (r.RegisteredAt == at && r.Id < rid))));
+            }
+            else cur = null;
+            var (regPage, moreRegs) = Paging.Trim(await regs
+                .OrderBy(r => r.IsCancelled).ThenByDescending(r => r.RegisteredAt).ThenByDescending(r => r.Id)
+                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+            model.Registrations = regPage;
+            model.RegistrationsPager = new PageLinks
+            {
+                Param = "rcur", Tab = "registrations", IsPaged = cur != null, Shown = regPage.Count, Total = model.RegistrationListTotal,
+                Next = moreRegs ? Paging.Encode(regPage[^1].IsCancelled ? 1 : 0, regPage[^1].RegisteredAt, regPage[^1].Id) : null
+            };
+
+            var pageIds = regPage.Select(r => r.Id).ToList();
+            var paidRows = await _db.FeeCollections.Where(c => c.WorkshopId == id && pageIds.Contains(c.RegistrationId))
+                .Select(c => new { c.RegistrationId, c.Amount }).ToListAsync();
+            model.PaidRegistrationIds = paidRows.Select(p => p.RegistrationId).ToHashSet();
+            model.PaidByRegistration = paidRows.GroupBy(p => p.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
             model.OverCapacity = workshop.Capacity.HasValue && model.RegistrationCount > workshop.Capacity.Value;
 
             // Returning students: same phone number registered for other workshops.
@@ -115,16 +163,41 @@ public class WorkshopsController : AppController
 
         if (User.Can(Permissions.ExpensesView))
         {
-            model.Expenses = await _db.WorkshopExpenses.Include(e => e.ExpenseCategory)
-                .Where(e => e.WorkshopId == id).OrderByDescending(e => e.ExpenseDate).ToListAsync();
-            model.TotalExpenses = model.Expenses.Sum(e => e.Amount);
+            // Total from the amounts only; the table shows one page at a time (cursor).
+            var amounts = await _db.WorkshopExpenses.Where(e => e.WorkshopId == id).Select(e => e.Amount).ToListAsync();
+            model.TotalExpenses = amounts.Sum();
+            model.ExpenseTotalCount = amounts.Count;
+            var exp = _db.WorkshopExpenses.Include(e => e.ExpenseCategory).Where(e => e.WorkshopId == id);
+            var cur = Paging.Decode(ecur, 2);
+            if (cur != null && Paging.TryDate(cur[0], out var d) && Paging.TryInt(cur[1], out var eid))
+                exp = exp.Where(e => e.ExpenseDate < d || (e.ExpenseDate == d && e.Id < eid));
+            else cur = null;
+            var (expPage, moreExp) = Paging.Trim(await exp.OrderByDescending(e => e.ExpenseDate).ThenByDescending(e => e.Id)
+                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+            model.Expenses = expPage;
+            model.ExpensesPager = new PageLinks
+            {
+                Param = "ecur", Tab = "expenses", IsPaged = cur != null, Shown = expPage.Count, Total = model.ExpenseTotalCount,
+                Next = moreExp ? Paging.Encode(expPage[^1].ExpenseDate, expPage[^1].Id) : null
+            };
         }
 
         if (User.Can(Permissions.CollectionsView))
         {
-            model.Collections = await _db.FeeCollections.Include(c => c.Registration)
-                .Where(c => c.WorkshopId == id).OrderByDescending(c => c.CollectedOn).ThenByDescending(c => c.Id).ToListAsync();
-            model.PaidByRegistration = model.Collections.GroupBy(c => c.RegistrationId).ToDictionary(g => g.Key, g => g.Sum(c => c.Amount));
+            var col = _db.FeeCollections.Include(c => c.Registration).Where(c => c.WorkshopId == id);
+            model.CollectionTotalCount = await col.CountAsync();
+            var cur = Paging.Decode(ccur, 2);
+            if (cur != null && Paging.TryDate(cur[0], out var d) && Paging.TryInt(cur[1], out var cid))
+                col = col.Where(c => c.CollectedOn < d || (c.CollectedOn == d && c.Id < cid));
+            else cur = null;
+            var (colPage, moreCol) = Paging.Trim(await col.OrderByDescending(c => c.CollectedOn).ThenByDescending(c => c.Id)
+                .Take(Paging.DetailSize + 1).ToListAsync(), Paging.DetailSize);
+            model.Collections = colPage;
+            model.CollectionsPager = new PageLinks
+            {
+                Param = "ccur", Tab = "payments", IsPaged = cur != null, Shown = colPage.Count, Total = model.CollectionTotalCount,
+                Next = moreCol ? Paging.Encode(colPage[^1].CollectedOn, colPage[^1].Id) : null
+            };
         }
 
         // US-19: the same figures as the dashboard and reports.
@@ -329,7 +402,7 @@ public class WorkshopsController : AppController
     [HttpPost, HasPermission(Permissions.RegistrationsCancel)]
     public async Task<IActionResult> CancelRegistration(int id, int registrationId, string? reason)
     {
-        var result = await _service.CancelRegistrationAsync(registrationId, CurrentUserName, reason);
+        var result = await _service.CancelRegistrationAsync(registrationId, CurrentUserName, reason, id);
         HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove("capacity-alerts");
         if (result.Success)
         {
@@ -344,7 +417,7 @@ public class WorkshopsController : AppController
     [HttpPost, HasPermission(Permissions.RegistrationsCancel)]
     public async Task<IActionResult> RestoreRegistration(int id, int registrationId)
     {
-        var result = await _service.RestoreRegistrationAsync(registrationId, CurrentUserName);
+        var result = await _service.RestoreRegistrationAsync(registrationId, CurrentUserName, id);
         HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>().Remove("capacity-alerts");
         if (!result.Success) Error("Can't undo the cancellation", result.Error);
         else if (result.OverCapacity)
@@ -396,12 +469,13 @@ public class WorkshopsController : AppController
 
     // US-13: export registered students
     [HasPermission(Permissions.RegistrationsView)]
+    [EnableRateLimiting(AbuseProtection.Export)]
     public async Task<IActionResult> ExportRegistrations(int id)
     {
         var w = await _db.Workshops.FindAsync(id);
         if (w == null) return NotFound();
 
-        var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.IsCancelled).ThenBy(r => r.RegisteredAt).ToListAsync();
+        var rows = await _db.Registrations.Where(r => r.WorkshopId == id).OrderBy(r => r.IsCancelled).ThenBy(r => r.RegisteredAt).Take(20000).ToListAsync(); // hard cap per file
         var sb = new StringBuilder();
         var showMoney = User.Can(Permissions.CollectionsView) && !w.IsFree;
         var paid = showMoney
@@ -438,7 +512,7 @@ public class WorkshopsController : AppController
     {
         if (string.IsNullOrEmpty(value)) return "";
         // Neutralise spreadsheet formulas and escape quotes.
-        if ("=+-@".Contains(value[0])) value = "'" + value;
+        if ("=+-@\t\r".Contains(value[0])) value = "'" + value;
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 

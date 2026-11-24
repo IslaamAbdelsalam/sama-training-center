@@ -128,11 +128,11 @@
                 }
                 @if (canSeeExpenses)
                 {
-                    <li class="nav-item"><button type="button" class="nav-link @TabCss("expenses")" data-bs-toggle="tab" data-bs-target="#tab-expenses" data-tab-name="expenses" role="tab"><i class="icon-base ri ri-wallet-3-line me-1"></i>@L["Expenses"] <span class="badge rounded-pill bg-label-secondary ms-1">@Model.Expenses.Count</span></button></li>
+                    <li class="nav-item"><button type="button" class="nav-link @TabCss("expenses")" data-bs-toggle="tab" data-bs-target="#tab-expenses" data-tab-name="expenses" role="tab"><i class="icon-base ri ri-wallet-3-line me-1"></i>@L["Expenses"] <span class="badge rounded-pill bg-label-secondary ms-1">@Model.ExpenseTotalCount</span></button></li>
                 }
                 @if (showPayments)
                 {
-                    <li class="nav-item"><button type="button" class="nav-link @TabCss("payments")" data-bs-toggle="tab" data-bs-target="#tab-payments" data-tab-name="payments" role="tab"><i class="icon-base ri ri-hand-coin-line me-1"></i>@L["Payments"] <span class="badge rounded-pill bg-label-success ms-1">@Model.Collections.Count</span></button></li>
+                    <li class="nav-item"><button type="button" class="nav-link @TabCss("payments")" data-bs-toggle="tab" data-bs-target="#tab-payments" data-tab-name="payments" role="tab"><i class="icon-base ri ri-hand-coin-line me-1"></i>@L["Payments"] <span class="badge rounded-pill bg-label-success ms-1">@Model.CollectionTotalCount</span></button></li>
                 }
                 <li class="nav-item"><button type="button" class="nav-link @TabCss("history")" data-bs-toggle="tab" data-bs-target="#tab-history" data-tab-name="history" role="tab"><i class="icon-base ri ri-history-line me-1"></i>@L["History"]</button></li>
             </ul>
@@ -293,6 +293,7 @@
                                     </tbody>
                                 </table>
                             </div>
+                            <partial name="_Pager" model="Model.RegistrationsPager" />
                         }
                     </div>
                 }
@@ -357,6 +358,7 @@
                                     <tfoot><tr><th colspan="2">@L["Total"]</th><th class="text-end">@Model.TotalExpenses.ToString("N2")</th><th colspan="2"></th></tr></tfoot>
                                 </table>
                             </div>
+                            <partial name="_Pager" model="Model.ExpensesPager" />
                         }
                     </div>
                 }
@@ -423,6 +425,7 @@
                                     <tfoot><tr><th colspan="3">@L["Total collected"]</th><th class="text-end">@fin.Collected.ToString("N2")</th><th colspan="2"></th></tr></tfoot>
                                 </table>
                             </div>
+                            <partial name="_Pager" model="Model.CollectionsPager" />
                         }
                     </div>
                 }
@@ -627,12 +630,4 @@
             </form>
         </div>
     </div>
-    <script>
-        document.getElementById('cancel-registration')?.addEventListener('show.bs.modal', function (e) {
-            var b = e.relatedTarget;
-            document.getElementById('cancel-registration-id').value = b.getAttribute('data-registration-id');
-            document.getElementById('cancel-registration-name').textContent = b.getAttribute('data-registration-name');
-            document.getElementById('cancel-reason').value = '';
-        });
-    </script>
 }

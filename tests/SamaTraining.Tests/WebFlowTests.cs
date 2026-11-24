@@ -18,6 +18,9 @@ public class WebFlowTests : IClassFixture<TestAppFactory>
     private static FormUrlEncodedContent Form(string page, Dictionary<string, string> fields)
     {
         fields["__RequestVerificationToken"] = TestAppFactory.AntiForgery(page);
+        // The public form's signed time stamp (invisible robot check), as a browser would send it.
+        var stamp = System.Text.RegularExpressions.Regex.Match(page, "name=\"fs\" value=\"([^\"]+)\"");
+        if (stamp.Success && !fields.ContainsKey("fs")) fields["fs"] = System.Net.WebUtility.HtmlDecode(stamp.Groups[1].Value);
         return new FormUrlEncodedContent(fields);
     }
 

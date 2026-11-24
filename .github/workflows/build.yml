@@ -24,6 +24,12 @@ jobs:
       - name: Build
         run: dotnet build SamaTraining.sln --no-restore -c Release
 
+      # Fails the build when a NuGet package with a known vulnerability is used.
+      - name: Check packages for known vulnerabilities
+        run: |
+          dotnet list SamaTraining.sln package --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          if grep -qE "(Critical|High|Moderate)" vuln.txt; then echo "::error::Vulnerable packages found"; exit 1; fi
+
       - name: Test
         run: dotnet test SamaTraining.sln --no-build -c Release --logger "console;verbosity=normal" --logger "GitHubActions;summary-include-passed=false"
 

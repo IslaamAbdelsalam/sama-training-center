@@ -248,7 +248,7 @@
             {
                 <tr><td colspan="10" class="text-center text-body-secondary py-6">@L["No workshops in this period."]</td></tr>
             }
-            @foreach (var r in Model.Rows)
+            @foreach (var r in Model.PageRows)
             {
                 <tr>
                     <td>
@@ -293,4 +293,5 @@
             </tbody>
         </table>
     </div>
+    <partial name="_Pager" model="Model.Pager" />
 </div>

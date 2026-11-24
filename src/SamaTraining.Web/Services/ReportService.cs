@@ -31,6 +31,9 @@ public class ReportService
     public async Task<ReportViewModel> BuildAsync(ReportFilter filter)
     {
         filter = WithDefaults(filter);
+        if (filter.Country?.Length > 2) filter.Country = null;
+        // A report covers at most 5 years, so one request can't scan the whole history.
+        if ((filter.To!.Value - filter.From!.Value).TotalDays > 366 * 5) filter.From = filter.To.Value.AddYears(-5);
         var from = filter.From!.Value.Date;
         var toExclusive = filter.To!.Value.Date.AddDays(1);
 
@@ -66,7 +69,7 @@ public class ReportService
         var model = new ReportViewModel { Filter = filter };
 
         model.Rows = workshops
-            .OrderByDescending(w => w.StartDateTime)
+            .OrderByDescending(w => w.StartDateTime).ThenByDescending(w => w.Id)
             .Select(w => new WorkshopReportRow
             {
                 Id = w.Id,

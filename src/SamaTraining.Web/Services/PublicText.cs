@@ -51,6 +51,7 @@ public class PublicText
         ["NotFoundTitle"] = ("Link not found", "الرابط غير موجود"),
         ["NotFoundBody"] = ("This registration link isn't valid. Please check the link you received.", "رابط التسجيل غير صالح. يرجى التحقق من الرابط الذي استلمته."),
         ["Language"] = ("العربية", "English"),
+        ["TryAgain"] = ("The form was open for too long. Please check your details and submit again.", "انتهت مهلة النموذج. يرجى مراجعة بياناتك والإرسال مرة أخرى."),
     };
 
     public static string Normalize(string? lang) => lang == "ar" ? "ar" : "en";

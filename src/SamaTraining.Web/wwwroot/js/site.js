@@ -286,4 +286,22 @@
       clearTimeout(hoverTimer); root.classList.remove('layout-menu-hover');
     });
   }
+
+  // ---- Links that only open menus/dropdowns (href="#") never jump to the top of the page ----
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href="#"]');
+    if (a) e.preventDefault();
+  });
+
+  // ---- Cancel-registration dialog: fill in who is being cancelled (no inline scripts: the CSP blocks them) ----
+  var cancelModal = document.getElementById('cancel-registration');
+  if (cancelModal) {
+    cancelModal.addEventListener('show.bs.modal', function (e) {
+      var b = e.relatedTarget;
+      if (!b) return;
+      document.getElementById('cancel-registration-id').value = b.getAttribute('data-registration-id');
+      document.getElementById('cancel-registration-name').textContent = b.getAttribute('data-registration-name');
+      document.getElementById('cancel-reason').value = '';
+    });
+  }
 })();

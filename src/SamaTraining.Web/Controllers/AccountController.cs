@@ -1,3 +1,5 @@
+using SamaTraining.Web.Security;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +36,7 @@ public class AccountController : AppController
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
-    [AllowAnonymous, HttpPost]
+    [AllowAnonymous, HttpPost, EnableRateLimiting(AbuseProtection.Auth)]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid)
@@ -98,7 +100,7 @@ public class AccountController : AppController
         return View(new ChangePasswordViewModel { IsFirstLogin = user?.MustChangePassword == true });
     }
 
-    [HttpPost]
+    [HttpPost, EnableRateLimiting(AbuseProtection.Auth)]
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -144,7 +146,7 @@ public class AccountController : AppController
         return View(new ForgotPasswordViewModel());
     }
 
-    [AllowAnonymous, HttpPost]
+    [AllowAnonymous, HttpPost, EnableRateLimiting(AbuseProtection.Auth)]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         ViewBag.EmailEnabled = _email.IsConfigured;
@@ -232,7 +234,7 @@ public class AccountController : AppController
         return View(new SetNewPasswordViewModel { UserId = userId, Token = token });
     }
 
-    [AllowAnonymous, HttpPost]
+    [AllowAnonymous, HttpPost, EnableRateLimiting(AbuseProtection.Auth)]
     public async Task<IActionResult> ResetPassword(SetNewPasswordViewModel model)
     {
         if (!ModelState.IsValid) return View(model);

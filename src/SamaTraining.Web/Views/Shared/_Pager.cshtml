@@ -1,0 +1,29 @@
+@model PageLinks
+@* Cursor pager under a table: "First page" and "Next page" keep every other filter in the address. *@
+@{
+    string Url(string? cursor)
+    {
+        var q = Context.Request.Query
+            .Where(kv => kv.Key != Model.Param && kv.Key != "tab")
+            .ToDictionary(kv => kv.Key, kv => (string?)kv.Value.ToString());
+        if (cursor != null) q[Model.Param] = cursor;
+        if (Model.Tab != null) q["tab"] = Model.Tab;
+        return Context.Request.Path + QueryString.Create(q) + (Model.Tab != null ? "#tab-" + Model.Tab : "");
+    }
+}
+@if (Model.IsPaged || Model.Next != null)
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 px-5 py-4 border-top pager">
+        <small class="text-body-secondary">@L["{0} on this page · {1} in total", Model.Shown, Model.Total]</small>
+        <div class="d-flex gap-2">
+            @if (Model.IsPaged)
+            {
+                <a href="@Url(null)" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-arrow-go-back-line me-1"></i>@L["First page"]</a>
+            }
+            @if (Model.Next != null)
+            {
+                <a href="@Url(Model.Next)" class="btn btn-sm btn-primary">@L["Next page"]<i class="icon-base ri ri-arrow-left-s-line ms-1 pager-next"></i></a>
+            }
+        </div>
+    </div>
+}

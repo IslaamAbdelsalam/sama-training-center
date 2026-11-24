@@ -34,7 +34,7 @@ public class CollectionsController : AppController
         if (registrationId.HasValue)
         {
             // Summed in memory: SQLite can't sum decimals in the database.
-            var paid = (await _db.FeeCollections.Where(c => c.RegistrationId == registrationId).Select(c => c.Amount).ToListAsync()).Sum();
+            var paid = (await _db.FeeCollections.Where(c => c.RegistrationId == registrationId && c.WorkshopId == w.Id).Select(c => c.Amount).ToListAsync()).Sum();
             var left = (w.Fee ?? 0) - paid;
             if (left > 0) model.Amount = left;
         }

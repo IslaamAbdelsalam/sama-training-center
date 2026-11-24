@@ -76,7 +76,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
     options.Cookie.Name = "SamaTraining.Auth";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    // Production is HTTPS only: the sign-in cookie is never sent over plain HTTP or readable by scripts.
+    options.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromMinutes(
         builder.Configuration.GetValue("App:SessionTimeoutMinutes", 30));
     options.SlidingExpiration = true;
@@ -94,6 +96,29 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<WorkshopService>();
+
+builder.Services.AddHsts(o => { o.MaxAge = TimeSpan.FromDays(365); o.IncludeSubDomains = true; });
+
+// ---- Abuse protection: rate limits per IP, robot check on the public form, request size limits ----
+builder.Services.AddAbuseProtection(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton<FormBotGuard>();
+builder.Services.AddAntiforgery(o =>
+{
+    o.Cookie.Name = "SamaTraining.Csrf";
+    o.Cookie.HttpOnly = true;
+    o.Cookie.SameSite = SameSiteMode.Strict;
+    o.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+});
+const long maxBody = 2 * 1024 * 1024; // 2 MB: no uploads, the largest form is a workshop with its agenda
+builder.WebHost.ConfigureKestrel(k => { k.AddServerHeader = false; k.Limits.MaxRequestBodySize = maxBody; k.Limits.MaxRequestHeadersTotalSize = 32 * 1024; });
+builder.Services.Configure<Microsoft.AspNetCore.Builder.IISServerOptions>(o => o.MaxRequestBodySize = maxBody);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.ValueCountLimit = 500;
+    o.ValueLengthLimit = 256 * 1024;
+    o.KeyLengthLimit = 256;
+    o.MultipartBodyLengthLimit = maxBody;
+});
 
 // Performance: compress pages, CSS and JS (gzip/brotli) and keep small lookups in memory.
 builder.Services.AddResponseCompression(o =>
@@ -139,7 +164,9 @@ builder.Services.AddControllersWithViews(options =>
 
 var app = builder.Build();
 
-await InitializeDatabaseAsync(app, app.Environment.IsProduction() ? Path.Combine(privateSettingsDir, "first-admin-password.txt") : null);
+// No password is ever kept in the code or GitHub: when none is configured, the first admin's temporary password
+// is generated and written to the private folder (outside the website).
+await InitializeDatabaseAsync(app, app.Environment.IsEnvironment("Testing") ? null : Path.Combine(privateSettingsDir, "first-admin-password.txt"));
 
 if (!app.Environment.IsDevelopment())
 {
@@ -147,6 +174,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseProbeBlocker();
 app.UseHttpsRedirection();
 app.UseResponseCompression();
 // Browsers keep theme files for 30 days; files linked with ?v=... (asp-append-version) for a year, since the link changes when the file does.
@@ -161,6 +190,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseMiddleware<UiLanguageMiddleware>();
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseMiddleware<MustChangePasswordMiddleware>();

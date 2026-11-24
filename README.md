@@ -58,10 +58,23 @@ tests/SamaTraining.Tests/
 2. Open `SamaTraining.sln`.
 3. The default connection string in `appsettings.json` uses LocalDB (`(localdb)\MSSQLLocalDB`). Change it if you use another SQL Server.
 4. Press **F5**. On first start the app creates the database, the default roles, starter lookup values and the first administrator.
-5. Sign in with the development administrator:
-   - Username: `admin`
-   - Password: `Sama@Dev2026!` (from `appsettings.Development.json`, development only)
-   - You will be asked to set your own password immediately.
+5. Sign in as `admin`. No password is stored in the code: on first start a temporary one is generated into
+   `src/private/first-admin-password.txt` (git-ignored). You will be asked to set your own password immediately.
+
+## Security
+
+- **Secrets stay on the server.** The connection string, admin password and SMTP settings live in
+  `<site root>/private/` (outside the website and git-ignored). Nothing secret is in GitHub or sent to the browser.
+- **Every request is checked on the server**: sign-in, permission per action, and row checks (a payment, expense
+  or registration can only be changed through the workshop it belongs to). The browser never talks to the database.
+- **Validation on the server** for every form (lengths, ranges, formats), anti-forgery tokens on every post,
+  rich text sanitised, CSV cells protected against formula injection.
+- **Rate limits per IP** (all pages, sign-in, password reset, public registration form, exports) with HTTP 429,
+  plus account lockout after 5 wrong passwords and an invisible robot check on the public form.
+- **Paged lists** with cursors: no screen loads a whole table.
+- **Browser protection headers**: Content-Security-Policy, HSTS, no framing, no sniffing, no indexing.
+- Limits can be tuned in `private/appsettings.Production.json` under `"RateLimit"` (`PerMinute`, `AuthPer5Minutes`,
+  `PublicFormPer10Minutes`, `ExportPerMinute`, `MinFormSeconds`). Defaults: 600 requests a minute, 20 sign-in attempts per 5 minutes, 30 registrations per 10 minutes, 10 exports a minute.
 
 ## Default roles
 

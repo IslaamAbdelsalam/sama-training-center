@@ -48,4 +48,5 @@
             </tbody>
         </table>
     </div>
+    @if (ViewBag.Pager is PageLinks pager) { <partial name="_Pager" model="pager" /> }
 </div>
