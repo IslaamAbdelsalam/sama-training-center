@@ -232,7 +232,7 @@ public class ListFilterTests : IClassFixture<TestAppFactory>
 
         var users = await client.GetStringAsync("/Users?q=filter.fin");
         Assert.Contains("filter.finance", users);
-        Assert.DoesNotContain(">admin<", users);
+        Assert.Single(Regex.Matches(users, "data-row-link")); // only the matching user is listed
         Assert.Contains("Rows per page", users);
         Assert.Contains("No users match these filters.", await client.GetStringAsync("/Users?q=zzz-nobody"));
         Assert.Contains("filter.finance", await client.GetStringAsync("/Users?role=" + Uri.EscapeDataString(Roles.Finance)));
