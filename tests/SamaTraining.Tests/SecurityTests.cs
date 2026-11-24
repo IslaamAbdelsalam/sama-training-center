@@ -54,7 +54,7 @@ public class SecurityTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
-            ["Id"] = "0", ["Name"] = "Bot Trap", ["Capacity"] = "10", ["Fee"] = "0",
+            ["Id"] = "0", ["Name"] = "Bot Trap", ["NameAr"] = "فخ الروبوت", ["Capacity"] = "10", ["Fee"] = "0",
             ["Date"] = DateTime.Today.AddDays(9).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "11:00",
             ["Type"] = "Online", ["Country"] = "SD"
         }));
@@ -160,7 +160,7 @@ public class SecurityTests : IClassFixture<TestAppFactory>
         var page = await client.GetStringAsync("/Workshops/Create");
         var res = await client.PostAsync("/Workshops/Save", Form(page, new()
         {
-            ["Id"] = "0", ["Name"] = new string('x', 201), ["Capacity"] = "10", ["Fee"] = "0",
+            ["Id"] = "0", ["Name"] = new string('x', 201), ["NameAr"] = "اسم", ["Capacity"] = "10", ["Fee"] = "0",
             ["Date"] = DateTime.Today.AddDays(9).ToString("yyyy-MM-dd"), ["StartTime"] = "09:00", ["EndTime"] = "11:00",
             ["Type"] = "Online", ["Country"] = "SD"
         }));

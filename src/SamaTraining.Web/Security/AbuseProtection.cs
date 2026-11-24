@@ -17,19 +17,21 @@ public static class AbuseProtection
     public const string PublicForm = "public-form";
     public const string Export = "export";
 
-    public static IServiceCollection AddAbuseProtection(this IServiceCollection services, IConfiguration config, IHostEnvironment env)
+    public static IServiceCollection AddAbuseProtection(this IServiceCollection services)
     {
-        // Integration tests sign in many times from one address, so they get very high limits unless a test sets its own.
-        var testing = env.IsEnvironment("Testing");
-        int Limit(string key, int normal) => config.GetValue($"RateLimit:{key}", testing ? 1_000_000 : normal);
-
-        var perMinute = Limit("PerMinute", 600);           // any page, per IP (an office shares one IP)
-        var auth = Limit("AuthPer5Minutes", 20);           // sign-in / forgot / reset password posts, per IP
-        var publicForm = Limit("PublicFormPer10Minutes", 30); // registration form posts, per IP
-        var export = Limit("ExportPerMinute", 10);         // CSV downloads, per user
-
-        services.AddRateLimiter(o =>
+        services.AddRateLimiter(_ => { });
+        // Configured when first used, so the limits come from the final settings (private file, environment, tests).
+        services.AddOptions<RateLimiterOptions>().Configure<IConfiguration, IHostEnvironment>((o, config, env) =>
         {
+            // Integration tests sign in many times from one address, so they get very high limits unless a test sets its own.
+            var testing = env.IsEnvironment("Testing");
+            int Limit(string key, int normal) => config.GetValue($"RateLimit:{key}", testing ? 1_000_000 : normal);
+
+            var perMinute = Limit("PerMinute", 600);              // any page, per IP (an office shares one IP)
+            var auth = Limit("AuthPer5Minutes", 20);              // sign-in / forgot / reset / change password posts, per IP
+            var publicForm = Limit("PublicFormPer10Minutes", 30); // registration form posts, per IP
+            var export = Limit("ExportPerMinute", 10);            // CSV downloads, per user
+
             o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(ClientKey(ctx), _ => new FixedWindowRateLimiterOptions

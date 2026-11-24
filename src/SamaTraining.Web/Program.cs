@@ -100,7 +100,7 @@ builder.Services.AddScoped<WorkshopService>();
 builder.Services.AddHsts(o => { o.MaxAge = TimeSpan.FromDays(365); o.IncludeSubDomains = true; });
 
 // ---- Abuse protection: rate limits per IP, robot check on the public form, request size limits ----
-builder.Services.AddAbuseProtection(builder.Configuration, builder.Environment);
+builder.Services.AddAbuseProtection();
 builder.Services.AddSingleton<FormBotGuard>();
 builder.Services.AddAntiforgery(o =>
 {
